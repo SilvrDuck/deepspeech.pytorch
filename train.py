@@ -12,8 +12,12 @@ from data.data_loader import AudioDataLoader, SpectrogramDataset, BucketingSampl
 from data.utils import reduce_tensor
 from decoder import GreedyDecoder
 from model import DeepSpeech, supported_rnns
+from multitask_models import MtAccent
 
 parser = argparse.ArgumentParser(description='DeepSpeech training')
+# added arguments
+parser.add_argument('--model', default='deepspeech', choices=['deepspeech','mt_accent'], help='Decide which model to use. Available: deepspeech, mt_accent')
+# base arguments
 parser.add_argument('--train-manifest', metavar='DIR',
                     help='path to train manifest csv', default='data/train_manifest.csv')
 parser.add_argument('--val-manifest', metavar='DIR',
@@ -188,12 +192,26 @@ if __name__ == '__main__':
 
         rnn_type = args.rnn_type.lower()
         assert rnn_type in supported_rnns, "rnn_type should be either lstm, rnn or gru"
-        model = DeepSpeech(rnn_hidden_size=args.hidden_size,
-                           nb_layers=args.hidden_layers,
-                           labels=labels,
-                           rnn_type=supported_rnns[rnn_type],
-                           audio_conf=audio_conf,
-                           bidirectional=args.bidirectional)
+        
+        chosen_model = args.model.lower()
+        model = None
+        if chosen_model == 'deepspeech':
+            model = DeepSpeech(rnn_hidden_size=args.hidden_size,
+                               nb_layers=args.hidden_layers,
+                               labels=labels,
+                               rnn_type=supported_rnns[rnn_type],
+                               audio_conf=audio_conf,
+                               bidirectional=args.bidirectional)
+        elif chosen_model == 'mt_accent':
+            model = MtAccent(rnn_hidden_size=args.hidden_size,
+                             nb_layers=args.hidden_layers,
+                             labels=labels,
+                             rnn_type=supported_rnns[rnn_type],
+                             audio_conf=audio_conf,
+                             bidirectional=args.bidirectional)
+        else:
+            raise ValueError(f'Model {chosen_model} invalid.')
+            
         parameters = model.parameters()
         optimizer = torch.optim.SGD(parameters, lr=args.lr,
                                     momentum=args.momentum, nesterov=True)
