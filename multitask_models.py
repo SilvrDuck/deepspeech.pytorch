@@ -13,6 +13,7 @@ from model import SequenceWise, MaskConv, InferenceBatchSoftmax, BatchRNN, Looka
 
 
 class MtAccent(DeepSpeech):
+
     @overrides
     def __init__(self, rnn_type=nn.LSTM, labels="abc", 
                 rnn_hidden_size=768, nb_layers=5, 
@@ -23,7 +24,7 @@ class MtAccent(DeepSpeech):
         assert nb_shared_layers <= nb_layers,'There must be less shared layers than main layers (nb_shared_layers <= nb_layers).'
         assert nb_shared_layers <= side_nb_layers,'There must be less shared layers than side layers (nb_shared_layers <= side_nb_layers).'
 
-        super(MtAccent, self).__init__(self, rnn_type=rnn_type, labels=labels, 
+        super(MtAccent, self).__init__(rnn_type=rnn_type, labels=labels, 
                                         rnn_hidden_size=rnn_hidden_size, nb_layers=nb_layers, 
                                         audio_conf=audio_conf, bidirectional=bidirectional, 
                                         context=context)

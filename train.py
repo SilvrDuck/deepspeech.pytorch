@@ -203,12 +203,7 @@ if __name__ == '__main__':
                                audio_conf=audio_conf,
                                bidirectional=args.bidirectional)
         elif chosen_model == 'mt_accent':
-            model = MtAccent(rnn_hidden_size=args.hidden_size,
-                             nb_layers=args.hidden_layers,
-                             labels=labels,
-                             rnn_type=supported_rnns[rnn_type],
-                             audio_conf=audio_conf,
-                             bidirectional=args.bidirectional)
+            model = MtAccent()
         else:
             raise ValueError(f'Model {chosen_model} invalid.')
             
@@ -232,6 +227,7 @@ if __name__ == '__main__':
                                   num_workers=args.num_workers)
 
     if (not args.no_shuffle and start_epoch != 0) or args.no_sorta_grad:
+
         print("Shuffling batches for the following epochs")
         train_sampler.shuffle(start_epoch)
 
@@ -263,7 +259,9 @@ if __name__ == '__main__':
             if args.cuda:
                 inputs = inputs.cuda()
 
-            out, output_sizes = model(inputs, input_sizes)
+            out, side_out, output_sizes = model(inputs, input_sizes)
+            print("main AAAAAAAAAAAAAA", out.shape)
+            print("side BBBBBBBBBBBBBB", side_out.shape)
             out = out.transpose(0, 1)  # TxNxH
 
             loss = criterion(out, targets, output_sizes, target_sizes)
