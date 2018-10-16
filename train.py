@@ -242,7 +242,7 @@ if __name__ == '__main__':
     print("Number of parameters: %d" % DeepSpeech.get_param_size(model))
 
     if args.tensorboard and main_proc:
-        dummy_input = Variable(torch.rand(13, 1, 28, 28))
+        dummy_input = Variable(torch.rand(20, 1, 161, 965))
         tensorboard_writer.add_graph(model, (dummy_input, ))
 
     batch_time = AverageMeter()
@@ -263,7 +263,8 @@ if __name__ == '__main__':
 
             if args.cuda:
                 inputs = inputs.cuda()
-
+            print("LOOOOOOOOOOOOOOOOOOOL", inputs.size())
+            print('SIZEEEEEEEEEEEE', input_sizes)
             out, side_out, output_sizes = model(inputs, input_sizes)
             print("main AAAAAAAAAAAAAA", out.shape)
             print("side BBBBBBBBBBBBBB", side_out.shape)
