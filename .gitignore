@@ -103,3 +103,4 @@ data/*.csv
 data/*_dataset/
 runs/
 visualize/
+*.tmp
