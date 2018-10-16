@@ -5,6 +5,7 @@ import time
 
 import torch.distributed as dist
 import torch.utils.data.distributed
+from torch.autograd import Variable
 from tqdm import tqdm
 from warpctc_pytorch import CTCLoss
 
@@ -206,7 +207,7 @@ if __name__ == '__main__':
             model = MtAccent()
         else:
             raise ValueError(f'Model {chosen_model} invalid.')
-            
+
         parameters = model.parameters()
         optimizer = torch.optim.SGD(parameters, lr=args.lr,
                                     momentum=args.momentum, nesterov=True)
@@ -239,6 +240,10 @@ if __name__ == '__main__':
 
     print(model)
     print("Number of parameters: %d" % DeepSpeech.get_param_size(model))
+
+    if args.tensorboard and main_proc:
+        dummy_input = Variable(torch.rand(13, 1, 28, 28))
+        tensorboard_writer.add_graph(model, (dummy_input, ))
 
     batch_time = AverageMeter()
     data_time = AverageMeter()
