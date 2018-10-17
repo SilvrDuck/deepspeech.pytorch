@@ -3,8 +3,8 @@ import json
 import os
 import time
 
+import torch
 import torch.distributed as dist
-import torch.utils.data.distributed
 from torch.autograd import Variable
 from tqdm import tqdm
 from warpctc_pytorch import CTCLoss
@@ -16,8 +16,13 @@ from model import DeepSpeech, supported_rnns
 from multitask_models import MtAccent
 
 parser = argparse.ArgumentParser(description='DeepSpeech training')
+
 # added arguments
 parser.add_argument('--model', default='deepspeech', choices=['deepspeech','mt_accent'], help='Decide which model to use. Available: deepspeech, mt_accent')
+parser.add_argument('--side-hidden-layers', default='4', type=int, help='Only for multi-task models. Number of layers in the side network')
+parser.add_argument('--side-hidden-size', default='800', type=int, help='Only for multi-task models. Size of the layers in the side network')
+parser.add_argument('--side-rnn-type', default='gru', help='Only for multi-task models. Type of the RNN in the side network. rnn|gru|lstm are supported')
+parser.add_argument('--shared-layers', default='2', type=int, help='Only for multi-task models. Number of layers shared by the two networks')
 # base arguments
 parser.add_argument('--train-manifest', metavar='DIR',
                     help='path to train manifest csv', default='data/train_manifest.csv')
@@ -116,8 +121,10 @@ if __name__ == '__main__':
         main_proc = args.rank == 0  # Only the first proc should save models
     save_folder = args.save_folder
 
-    loss_results, cer_results, wer_results = torch.Tensor(args.epochs), torch.Tensor(args.epochs), torch.Tensor(
-        args.epochs)
+    loss_results = torch.Tensor(args.epochs)
+    cer_results = torch.Tensor(args.epochs)
+    wer_results = torch.Tensor(args.epochs)
+
     best_wer = None
     if args.visdom and main_proc:
         from visdom import Visdom
@@ -129,8 +136,8 @@ if __name__ == '__main__':
     if args.tensorboard and main_proc:
         os.makedirs(args.log_dir, exist_ok=True)
         from tensorboardX import SummaryWriter
-
         tensorboard_writer = SummaryWriter(args.log_dir)
+
     os.makedirs(save_folder, exist_ok=True)
 
     avg_loss, start_epoch, start_iter = 0, 0, 0
@@ -157,6 +164,7 @@ if __name__ == '__main__':
             avg_loss = int(package.get('avg_loss', 0))
             loss_results, cer_results, wer_results = package['loss_results'], package[
                 'cer_results'], package['wer_results']
+            
             if main_proc and args.visdom and \
                             package[
                                 'loss_results'] is not None and start_epoch > 0:  # Add previous scores to visdom graph
@@ -194,29 +202,44 @@ if __name__ == '__main__':
         rnn_type = args.rnn_type.lower()
         assert rnn_type in supported_rnns, "rnn_type should be either lstm, rnn or gru"
         
+        if args.side_rnn_type is not None:
+            side_rnn_type = args.side_rnn_type.lower()
+            assert side_rnn_type in supported_rnns, "side_rnn_type should be either lstm, rnn or gru"
+
         chosen_model = args.model.lower()
         model = None
         if chosen_model == 'deepspeech':
             model = DeepSpeech(rnn_hidden_size=args.hidden_size,
-                               nb_layers=args.hidden_layers,
-                               labels=labels,
-                               rnn_type=supported_rnns[rnn_type],
-                               audio_conf=audio_conf,
-                               bidirectional=args.bidirectional)
+                                nb_layers=args.hidden_layers,
+                                labels=labels,
+                                rnn_type=supported_rnns[rnn_type],
+                                audio_conf=audio_conf,
+                                bidirectional=args.bidirectional)
         elif chosen_model == 'mt_accent':
-            model = MtAccent()
+            model = MtAccent(rnn_hidden_size=args.hidden_size,
+                                nb_layers=args.hidden_layers,
+                                labels=labels,
+                                rnn_type=supported_rnns[rnn_type],
+                                audio_conf=audio_conf,
+                                bidirectional=args.bidirectional,
+                                side_nb_layers=args.side_hidden_layers,
+                                side_rnn_hidden_size=args.side_hidden_size,
+                                side_rnn_type=supported_rnns[side_rnn_type],
+                                nb_shared_layers=args.shared_layers)
         else:
             raise ValueError(f'Model {chosen_model} invalid.')
 
         parameters = model.parameters()
         optimizer = torch.optim.SGD(parameters, lr=args.lr,
                                     momentum=args.momentum, nesterov=True)
-    criterion = CTCLoss()
+    criterion = CTCLoss() # TODO for different arch
     decoder = GreedyDecoder(labels)
+
     train_dataset = SpectrogramDataset(audio_conf=audio_conf, manifest_filepath=args.train_manifest, labels=labels,
                                        normalize=True, augment=args.augment)
     test_dataset = SpectrogramDataset(audio_conf=audio_conf, manifest_filepath=args.val_manifest, labels=labels,
                                       normalize=True, augment=False)
+
     if not args.distributed:
         train_sampler = BucketingSampler(train_dataset, batch_size=args.batch_size)
     else:
@@ -228,15 +251,15 @@ if __name__ == '__main__':
                                   num_workers=args.num_workers)
 
     if (not args.no_shuffle and start_epoch != 0) or args.no_sorta_grad:
-
         print("Shuffling batches for the following epochs")
         train_sampler.shuffle(start_epoch)
 
     if args.cuda:
         model.cuda()
         if args.distributed:
-            model = torch.nn.parallel.DistributedDataParallel(model,
-                                                              device_ids=(int(args.gpu_rank),) if args.rank else None)
+            model = torch.nn.parallel.DistributedDataParallel(
+                model,
+                device_ids=(int(args.gpu_rank),) if args.rank else None)
 
     print(model)
     print("Number of parameters: %d" % DeepSpeech.get_param_size(model))
@@ -267,7 +290,7 @@ if __name__ == '__main__':
             if args.cuda:
                 inputs = inputs.cuda()
 
-            out, out_side, output_sizes = model(inputs, input_sizes)
+            out, output_sizes = model(inputs, input_sizes)
             out = out.transpose(0, 1)  # TxNxH
 
             loss = criterion(out, targets, output_sizes, target_sizes)
