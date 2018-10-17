@@ -241,9 +241,12 @@ if __name__ == '__main__':
     print(model)
     print("Number of parameters: %d" % DeepSpeech.get_param_size(model))
 
-    if args.tensorboard and main_proc:
-        dummy_input = Variable(torch.rand(20, 1, 161, 965))
-        tensorboard_writer.add_graph(model, (dummy_input, ))
+    if args.tensorboard and main_proc and False: # TODO empty scope name problem
+        dummy_inputs = torch.rand(20, 1, 161, 10) # TODO dynamically change size
+        if args.cuda:
+            dummy_inputs = dummy_inputs.cuda()
+        dummy_size = torch.rand(20)
+        tensorboard_writer.add_graph(model, (dummy_inputs, dummy_size))
 
     batch_time = AverageMeter()
     data_time = AverageMeter()
@@ -263,11 +266,8 @@ if __name__ == '__main__':
 
             if args.cuda:
                 inputs = inputs.cuda()
-            print("LOOOOOOOOOOOOOOOOOOOL", inputs.size())
-            print('SIZEEEEEEEEEEEE', input_sizes)
-            out, side_out, output_sizes = model(inputs, input_sizes)
-            print("main AAAAAAAAAAAAAA", out.shape)
-            print("side BBBBBBBBBBBBBB", side_out.shape)
+
+            out, out_side, output_sizes = model(inputs, input_sizes)
             out = out.transpose(0, 1)  # TxNxH
 
             loss = criterion(out, targets, output_sizes, target_sizes)

@@ -104,3 +104,4 @@ data/*_dataset/
 runs/
 visualize/
 *.tmp
+*.swp
