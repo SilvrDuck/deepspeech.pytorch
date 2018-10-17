@@ -1,4 +1,6 @@
+import torch
 import torch.nn as nn
+from overrides import overrides
 
 
 class MtLoss(nn.Module):
@@ -13,6 +15,7 @@ class MtLoss(nn.Module):
             corresponding to the normalized array.
     """
 
+    @overrides
     def __init__(self, *losses, mixing_coef=.5):
         super(MtLoss, self).__init__()
         print(len(losses))
@@ -35,13 +38,14 @@ class MtLoss(nn.Module):
         self.coefs = coefs        
         self.losses = losses
 
+    @overrides
     def forward(self, *inputs):
         '''
         inputs: tuple of the inputs for each losses, in the same order
         they were given to the constructor.
         '''
-        losses_val = [l(i)*c 
-                      for l, i, c 
-                      in zip(self.losses, inputs, self.coefs)]
+        assert len(inputs) == len(self.losses), 'There should be as many inputs as losses.'
 
-        return sum(losses_val)
+        losses_val = [l(*i)*c for l, i, c in zip(self.losses, inputs, self.coefs)]
+        losses_val = [e if (len(e.size()) > 0) else e.unsqueeze(0) for e in losses_val]
+        return torch.cat(losses_val, dim=0).sum()

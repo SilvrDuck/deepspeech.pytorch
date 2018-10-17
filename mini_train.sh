@@ -15,7 +15,7 @@ SAVE_PATH="models/saved/"${ID}
 mkdir $SAVE_PATH
 
 python train.py \
-	--model deepspeech \
+	--model mt_accent \
 	--train-manifest ${SPLITS}mini${DEV_OR_TRAIN}.csv \
 	--val-manifest ${SPLITS}minitest.csv \
 	--sample-rate 16000 \
@@ -37,4 +37,9 @@ python train.py \
 	--save-folder $SAVE_PATH \
 	--model-path models/best/${ID}.pth \
 	--augment \
-	--id $ID
+	--id $ID \
+	--side-hidden-layers 4 \
+	--side-hidden-size 100 \
+	--side-rnn-type gru \
+	--shared-layers 2
+

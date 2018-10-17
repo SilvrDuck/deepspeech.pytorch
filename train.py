@@ -7,6 +7,7 @@ import torch
 import torch.distributed as dist
 from torch.autograd import Variable
 from tqdm import tqdm
+from torch.nn.modules import CrossEntropyLoss
 from warpctc_pytorch import CTCLoss
 
 from data.data_loader import AudioDataLoader, SpectrogramDataset, BucketingSampler, DistributedBucketingSampler
@@ -14,6 +15,7 @@ from data.utils import reduce_tensor
 from decoder import GreedyDecoder
 from model import DeepSpeech, supported_rnns
 from multitask_models import MtAccent
+from multitask_loss import MtLoss
 
 parser = argparse.ArgumentParser(description='DeepSpeech training')
 
@@ -232,7 +234,9 @@ if __name__ == '__main__':
         parameters = model.parameters()
         optimizer = torch.optim.SGD(parameters, lr=args.lr,
                                     momentum=args.momentum, nesterov=True)
-    criterion = CTCLoss() # TODO for different arch
+
+    criterion = MtLoss(CTCLoss(), CrossEntropyLoss())
+
     decoder = GreedyDecoder(labels)
 
     train_dataset = SpectrogramDataset(audio_conf=audio_conf, manifest_filepath=args.train_manifest, labels=labels,
@@ -290,10 +294,12 @@ if __name__ == '__main__':
             if args.cuda:
                 inputs = inputs.cuda()
 
-            out, output_sizes = model(inputs, input_sizes)
+            out, output_sizes, side_out = model(inputs, input_sizes)
             out = out.transpose(0, 1)  # TxNxH
+            side_out = side_out.transpose(0, 1)  # TxNxH
 
-            loss = criterion(out, targets, output_sizes, target_sizes)
+            dummy_out = torch.sum(side_out, dim=1).long()
+            loss = criterion((out, targets, output_sizes, target_sizes), (side_out, dummy_out))
             loss = loss / inputs.size(0)  # average the loss by minibatch
 
             inf = float("inf")
@@ -359,7 +365,7 @@ if __name__ == '__main__':
                 if args.cuda:
                     inputs = inputs.cuda()
 
-                out, output_sizes = model(inputs, input_sizes)
+                out, output_sizes, side_out = model(inputs, input_sizes) # TODO
 
                 decoded_output, _ = decoder.decode(out.data, output_sizes)
                 target_strings = decoder.convert_to_strings(split_targets)

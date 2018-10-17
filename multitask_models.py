@@ -82,4 +82,4 @@ class MtAccent(DeepSpeech):
         x = self.fc(x)
         x = x.transpose(0, 1)
         x = self.inference_softmax(x)
-        return x, side_x, output_lenghts
+        return x, output_lenghts, side_x
