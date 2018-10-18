@@ -1,8 +1,8 @@
 #!/bin/bash
 
-EXP_NAME="test" # no spaces
-DEV_OR_TRAIN="dev"
-EPOCHS='2'
+EXP_NAME="Baseline_vanilla_deepspeech" # no spaces
+DEV_OR_TRAIN="train"
+EPOCHS='70'
 
 
 NOW=$(eval date +"%F_%Hh%M_")
@@ -16,7 +16,7 @@ python train.py \
 	--model deepspeech \
 	--train-manifest ${SPLITS}${DEV_OR_TRAIN}.csv \
 	--val-manifest ${SPLITS}test.csv \
-	--sample-rate 16000 \
+	--sample-rate 100600 \
 	--batch-size 20 \
 	--window-size .02 \
 	--window-stride .01 \

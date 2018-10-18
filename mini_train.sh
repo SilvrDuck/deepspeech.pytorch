@@ -18,7 +18,8 @@ python train.py \
 	--model mt_accent \
 	--train-manifest ${SPLITS}mini${DEV_OR_TRAIN}.csv \
 	--val-manifest ${SPLITS}minitest.csv \
-	--sample-rate 16000 \
+    --tensorboard \
+    --sample-rate 16000 \
 	--batch-size 2 \
 	--window-size .02 \
 	--window-stride .01 \

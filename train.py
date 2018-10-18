@@ -3,6 +3,8 @@ import json
 import os
 import time
 
+import numpy as np
+
 import torch
 import torch.distributed as dist
 from torch.autograd import Variable
@@ -10,12 +12,18 @@ from tqdm import tqdm
 from torch.nn.modules import CrossEntropyLoss
 from warpctc_pytorch import CTCLoss
 
-from data.data_loader import AudioDataLoader, SpectrogramDataset, BucketingSampler, DistributedBucketingSampler
+from data.data_loader import AudioDataLoader, SpectrogramAccentDataset, BucketingSampler, DistributedBucketingSampler
 from data.utils import reduce_tensor
 from decoder import GreedyDecoder
 from model import DeepSpeech, supported_rnns
 from multitask_models import MtAccent
 from multitask_loss import MtLoss
+
+def restricted_float(x):
+    x = float(x)
+    if x < 0.0 or x > 1.0:
+        raise argparse.ArgumentTypeError(f'{x} not in range [0.0, 1.0]')     
+    return x
 
 parser = argparse.ArgumentParser(description='DeepSpeech training')
 
@@ -25,6 +33,7 @@ parser.add_argument('--side-hidden-layers', default='4', type=int, help='Only fo
 parser.add_argument('--side-hidden-size', default='800', type=int, help='Only for multi-task models. Size of the layers in the side network')
 parser.add_argument('--side-rnn-type', default='gru', help='Only for multi-task models. Type of the RNN in the side network. rnn|gru|lstm are supported')
 parser.add_argument('--shared-layers', default='2', type=int, help='Only for multi-task models. Number of layers shared by the two networks')
+parser.add_argument('--mixing-coef', default='.5', type=restricted_float, help='Only for multi-task models. Coeficient for the losses. Formula is [coef*main_loss + (1-coef)*side_loss.]')
 # base arguments
 parser.add_argument('--train-manifest', metavar='DIR',
                     help='path to train manifest csv', default='data/train_manifest.csv')
@@ -126,6 +135,7 @@ if __name__ == '__main__':
     loss_results = torch.Tensor(args.epochs)
     cer_results = torch.Tensor(args.epochs)
     wer_results = torch.Tensor(args.epochs)
+    missclass_accent_results = torch.Tensor(args.epochs)
 
     best_wer = None
     if args.visdom and main_proc:
@@ -164,8 +174,8 @@ if __name__ == '__main__':
             else:
                 start_iter += 1
             avg_loss = int(package.get('avg_loss', 0))
-            loss_results, cer_results, wer_results = package['loss_results'], package[
-                'cer_results'], package['wer_results']
+            loss_results, cer_results, wer_results, missclass_accent_results = package['loss_results'], package[
+                'cer_results'], package['wer_results'], package['missclass_accent']
             
             if main_proc and args.visdom and \
                             package[
@@ -186,7 +196,8 @@ if __name__ == '__main__':
                     values = {
                         'Avg Train Loss': loss_results[i],
                         'Avg WER': wer_results[i],
-                        'Avg CER': cer_results[i]
+                        'Avg CER': cer_results[i],
+                        'Missclassified accents': missclass_accent_results[i]
                     }
                     tensorboard_writer.add_scalars(args.id, values, i + 1)
     else:
@@ -208,17 +219,23 @@ if __name__ == '__main__':
             side_rnn_type = args.side_rnn_type.lower()
             assert side_rnn_type in supported_rnns, "side_rnn_type should be either lstm, rnn or gru"
 
-        chosen_model = args.model.lower()
-        model = None
-        if chosen_model == 'deepspeech':
+        if args.model == 'deepspeech':
             model = DeepSpeech(rnn_hidden_size=args.hidden_size,
                                 nb_layers=args.hidden_layers,
                                 labels=labels,
                                 rnn_type=supported_rnns[rnn_type],
                                 audio_conf=audio_conf,
                                 bidirectional=args.bidirectional)
-        elif chosen_model == 'mt_accent':
-            model = MtAccent(rnn_hidden_size=args.hidden_size,
+        elif args.model == 'mt_accent':
+            # TODO clean accent computation            
+            with open(args.train_manifest, 'r') as f:
+                accents = set()
+                for line in f:
+                    line = line.strip().split(',')
+                    accents.add(line[2])
+            accents_size = len(accents)
+            model = MtAccent(accents_size=accents_size,
+                                rnn_hidden_size=args.hidden_size,
                                 nb_layers=args.hidden_layers,
                                 labels=labels,
                                 rnn_type=supported_rnns[rnn_type],
@@ -228,20 +245,21 @@ if __name__ == '__main__':
                                 side_rnn_hidden_size=args.side_hidden_size,
                                 side_rnn_type=supported_rnns[side_rnn_type],
                                 nb_shared_layers=args.shared_layers)
-        else:
-            raise ValueError(f'Model {chosen_model} invalid.')
 
         parameters = model.parameters()
         optimizer = torch.optim.SGD(parameters, lr=args.lr,
                                     momentum=args.momentum, nesterov=True)
-
-    criterion = MtLoss(CTCLoss(), CrossEntropyLoss())
+    
+    if args.model == 'deepspeech':
+        criterion = CTCLoss()
+    elif args.model == 'mt_accent':
+        criterion = MtLoss(CTCLoss(), CrossEntropyLoss())
 
     decoder = GreedyDecoder(labels)
 
-    train_dataset = SpectrogramDataset(audio_conf=audio_conf, manifest_filepath=args.train_manifest, labels=labels,
+    train_dataset = SpectrogramAccentDataset(audio_conf=audio_conf, manifest_filepath=args.train_manifest, labels=labels,
                                        normalize=True, augment=args.augment)
-    test_dataset = SpectrogramDataset(audio_conf=audio_conf, manifest_filepath=args.val_manifest, labels=labels,
+    test_dataset = SpectrogramAccentDataset(audio_conf=audio_conf, manifest_filepath=args.val_manifest, labels=labels,
                                       normalize=True, augment=False)
 
     if not args.distributed:
@@ -286,7 +304,7 @@ if __name__ == '__main__':
         for i, (data) in enumerate(train_loader, start=start_iter):
             if i == len(train_sampler):
                 break
-            inputs, targets, input_percentages, target_sizes = data
+            inputs, targets, input_percentages, target_sizes, target_accents = data
             input_sizes = input_percentages.mul_(int(inputs.size(3))).int()
             # measure data loading time
             data_time.update(time.time() - end)
@@ -294,12 +312,19 @@ if __name__ == '__main__':
             if args.cuda:
                 inputs = inputs.cuda()
 
-            out, output_sizes, side_out = model(inputs, input_sizes)
-            out = out.transpose(0, 1)  # TxNxH
-            side_out = side_out.transpose(0, 1)  # TxNxH
-
-            dummy_out = torch.sum(side_out, dim=1).long()
-            loss = criterion((out, targets, output_sizes, target_sizes), (side_out, dummy_out))
+            if args.model == 'deepspeech':
+                out, output_sizes = model(inputs, input_sizes)
+                out = out.transpose(0, 1)  # TxNxH
+                
+                loss = criterion(out, targets, output_sizes, target_sizes)
+            elif args.model == 'mt_accent':
+                out, output_sizes, side_out = model(inputs, input_sizes)
+                out = out.transpose(0, 1)  # TxNxH
+                side_out = side_out.transpose(0, 1)  # TxNxH
+            
+#                dummy_out = torch.sum(side_out, dim=1).long()
+                loss = criterion((out, targets, output_sizes, target_sizes), (side_out, target_accents))
+            
             loss = loss / inputs.size(0)  # average the loss by minibatch
 
             inf = float("inf")
@@ -336,7 +361,9 @@ if __name__ == '__main__':
                 print("Saving checkpoint model to %s" % file_path)
                 torch.save(DeepSpeech.serialize(model, optimizer=optimizer, epoch=epoch, iteration=i,
                                                 loss_results=loss_results,
-                                                wer_results=wer_results, cer_results=cer_results, avg_loss=avg_loss),
+                                                wer_results=wer_results, cer_results=cer_results, 
+                                                missclass_accent_results=missclass_accent_results,
+                                                avg_loss=avg_loss),
                            file_path)
             del loss
             del out
@@ -348,11 +375,11 @@ if __name__ == '__main__':
               'Average Loss {loss:.3f}\t'.format(epoch + 1, epoch_time=epoch_time, loss=avg_loss))
 
         start_iter = 0  # Reset start iteration for next epoch
-        total_cer, total_wer = 0, 0
+        total_cer, total_wer, total_missclass_accent = 0, 0, 0
         model.eval()
         with torch.no_grad():
             for i, (data) in tqdm(enumerate(test_loader), total=len(test_loader)):
-                inputs, targets, input_percentages, target_sizes = data
+                inputs, targets, input_percentages, target_sizes, target_accents = data # TODO loss with accents
                 input_sizes = input_percentages.mul_(int(inputs.size(3))).int()
 
                 # unflatten targets
@@ -364,9 +391,18 @@ if __name__ == '__main__':
 
                 if args.cuda:
                     inputs = inputs.cuda()
-
-                out, output_sizes, side_out = model(inputs, input_sizes) # TODO
-
+                
+                if args.model == 'deepspeech':
+                    out, output_sizes = model(inputs, input_sizes) 
+                elif args.model == 'mt_accent':
+                    out, output_sizes, side_out = model(inputs, input_sizes) # TODO do smthg with side_out
+                    missclassified = 0
+                    for x in range(len(target_accents)):
+                        accent_out = np.argmax(side_out[x][0])
+                        accent_target = target_accents[x][0]
+                        if accent_out != accent_target:
+                            missclassified += 1
+                    total_missclass_accent += missclassified
                 decoded_output, _ = decoder.decode(out.data, output_sizes)
                 target_strings = decoder.convert_to_strings(split_targets)
                 wer, cer = 0, 0
@@ -379,14 +415,19 @@ if __name__ == '__main__':
                 del out
             wer = total_wer / len(test_loader.dataset)
             cer = total_cer / len(test_loader.dataset)
+            missclass_accent = total_missclass_accent / len(test_loader.dataset)
             wer *= 100
             cer *= 100
+            missclass_accent *= 100
             loss_results[epoch] = avg_loss
             wer_results[epoch] = wer
             cer_results[epoch] = cer
+            missclass_accent_results[epoch] = missclass_accent
             print('Validation Summary Epoch: [{0}]\t'
                   'Average WER {wer:.3f}\t'
                   'Average CER {cer:.3f}\t'.format(epoch + 1, wer=wer, cer=cer))
+            if args.model == 'mt_accent':
+                print(f'Accent missclassification {missclass_accent:.3f}')
 
             if args.visdom and main_proc:
                 x_axis = epochs[0:epoch + 1]
@@ -409,18 +450,21 @@ if __name__ == '__main__':
                 values = {
                     'Avg Train Loss': avg_loss,
                     'Avg WER': wer,
-                    'Avg CER': cer
+                    'Avg CER': cer,
+                    'Missclassified accents': missclass_accent
                 }
                 tensorboard_writer.add_scalars(args.id, values, epoch + 1)
                 if args.log_params:
                     for tag, value in model.named_parameters():
                         tag = tag.replace('.', '/')
                         tensorboard_writer.add_histogram(tag, to_np(value), epoch + 1)
+                        print(tag, value) # TODO TODO
                         tensorboard_writer.add_histogram(tag + '/grad', to_np(value.grad), epoch + 1)
             if args.checkpoint and main_proc:
                 file_path = '%s/deepspeech_%d.pth' % (save_folder, epoch + 1)
                 torch.save(DeepSpeech.serialize(model, optimizer=optimizer, epoch=epoch, loss_results=loss_results,
-                                                wer_results=wer_results, cer_results=cer_results),
+                                                wer_results=wer_results, cer_results=cer_results,
+                                                missclass_accent_results=missclass_accent_results),
                            file_path)
                 # anneal lr
                 optim_state = optimizer.state_dict()

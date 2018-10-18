@@ -14,6 +14,7 @@ import torchaudio
 import math
 from torch.utils.data import DataLoader
 from torch.utils.data import Dataset
+from overrides import overrides
 
 windows = {'hamming': scipy.signal.hamming, 'hann': scipy.signal.hann, 'blackman': scipy.signal.blackman,
            'bartlett': scipy.signal.bartlett}
@@ -156,7 +157,7 @@ class SpectrogramDataset(Dataset, SpectrogramParser):
 
     def __getitem__(self, index):
         sample = self.ids[index]
-        audio_path, transcript_path = sample[0], sample[1]
+        audio_path, transcript_path = sample[0], sample[1] 
         spect = self.parse_audio(audio_path)
         transcript = self.parse_transcript(transcript_path)
         return spect, transcript
@@ -169,6 +170,35 @@ class SpectrogramDataset(Dataset, SpectrogramParser):
 
     def __len__(self):
         return self.size
+
+def create_binarizer(accent_list):
+    from sklearn.preprocessing import LabelBinarizer
+    lb = LabelBinarizer()
+    lb.fit(accent_list)
+    return lb
+
+class SpectrogramAccentDataset(SpectrogramDataset):
+    '''
+    Adds accent support to the SpectrogramDataset class. csv manifest should contain the accent labels as third column.
+    The target accents are output as one-hot vectors.
+    '''
+    @overrides
+    def __init__(self, audio_conf, manifest_filepath, labels, normalize=False, augment=False):
+        super(SpectrogramAccentDataset, self).__init__(audio_conf, manifest_filepath, labels, normalize, augment)
+        try:
+            accent_list = list(set([x[2] for x in self.ids]))
+        except IndexError:
+            raise ValueError(f'{manifest_filepath} should have accent labels in its third column.')
+        self.accent_binarizer = create_binarizer(accent_list)
+
+    @overrides
+    def __getitem__(self, index):
+        sample = self.ids[index]
+        audio_path, transcript_path, accent = sample[0], sample[1], sample[2]
+        spect = self.parse_audio(audio_path)
+        transcript = self.parse_transcript(transcript_path)
+        accent = self.accent_binarizer.transform([accent])
+        return spect, transcript, accent
 
 
 def _collate_fn(batch):
@@ -184,17 +214,21 @@ def _collate_fn(batch):
     input_percentages = torch.FloatTensor(minibatch_size)
     target_sizes = torch.IntTensor(minibatch_size)
     targets = []
+    target_accents = []
     for x in range(minibatch_size):
         sample = batch[x]
         tensor = sample[0]
         target = sample[1]
+        accent = sample[2]
         seq_length = tensor.size(1)
         inputs[x][0].narrow(1, 0, seq_length).copy_(tensor)
         input_percentages[x] = seq_length / float(max_seqlength)
         target_sizes[x] = len(target)
         targets.extend(target)
+        target_accents.extend(accent)        
     targets = torch.IntTensor(targets)
-    return inputs, targets, input_percentages, target_sizes
+    target_accents = torch.LongTensor(target_accents)
+    return inputs, targets, input_percentages, target_sizes, target_accents
 
 
 class AudioDataLoader(DataLoader):

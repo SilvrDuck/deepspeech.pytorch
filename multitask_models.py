@@ -15,7 +15,7 @@ from model import SequenceWise, MaskConv, InferenceBatchSoftmax, BatchRNN, Looka
 class MtAccent(DeepSpeech):
 
     @overrides
-    def __init__(self, rnn_type=nn.LSTM, labels="abc", 
+    def __init__(self, accents_size, rnn_type=nn.LSTM, labels="abc", 
                 rnn_hidden_size=768, nb_layers=5, 
                 audio_conf=None, bidirectional=True, context=20,
                 side_nb_layers=4, side_rnn_hidden_size=768,
@@ -49,6 +49,10 @@ class MtAccent(DeepSpeech):
             side_rnns.append((f'side_{i}', rnn))
 
         self.side_rnns = nn.Sequential(OrderedDict(side_rnns))
+        
+        funnel = nn.Linear(side_rnn_hidden_size, accents_size)
+        sm = nn.LogSoftmax(dim=0)
+        self.logSoftmax = nn.Sequential(funnel, sm)
 
 
     @overrides
@@ -70,7 +74,7 @@ class MtAccent(DeepSpeech):
         for i in range(1, len(self.side_rnns)):
             side_x = self.side_rnns[i](x, output_lenghts)
 
-        side_x = F.softmax(side_x, dim=0)
+        side_x = self.logSoftmax(side_x)
 
         # Rest of main layers
         for i in range(self.nb_shared_layers, len(self.rnns)):
