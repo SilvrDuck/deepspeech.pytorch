@@ -330,7 +330,7 @@ if __name__ == '__main__':
                 print(target_sizes.is_cuda)
                 print(side_out.is_cuda)
                 print(target_accents.is_cuda)
-                loss = criterion((out, targets.cuda(), output_sizes, target_sizes), (side_out, target_accents.cuda()))
+                loss = criterion((out, targets, output_sizes, target_sizes), (side_out.cpu(), target_accents))
             
             loss = loss / inputs.size(0)  # average the loss by minibatch
 
