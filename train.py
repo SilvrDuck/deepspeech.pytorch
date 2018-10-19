@@ -144,7 +144,7 @@ if __name__ == '__main__':
         from visdom import Visdom
 
         viz = Visdom()
-        opts = dict(title=args.id, ylabel='', xlabel='Epoch', legend=['Loss', 'WER', 'CER'])
+        opts = dict(title=args.id, ylabel='', xlabel='Epoch', legend=['Loss', 'WER', 'CER', 'Accents missclassified'])
         viz_window = None
         epochs = torch.arange(1, args.epochs + 1)
     if args.tensorboard and main_proc:
@@ -189,7 +189,8 @@ if __name__ == '__main__':
                                 'loss_results'] is not None and start_epoch > 0:  # Add previous scores to visdom graph
                 x_axis = epochs[0:start_epoch]
                 y_axis = torch.stack(
-                    (loss_results[0:start_epoch], wer_results[0:start_epoch], cer_results[0:start_epoch]),
+                    (loss_results[0:start_epoch], wer_results[0:start_epoch], 
+                    cer_results[0:start_epoch]), mca_results[0:start_epoch],
                     dim=1)
                 viz_window = viz.line(
                     X=x_axis,
