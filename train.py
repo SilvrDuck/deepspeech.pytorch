@@ -441,7 +441,7 @@ if __name__ == '__main__':
             if args.visdom and main_proc:
                 x_axis = epochs[0:epoch + 1]
                 y_axis = torch.stack(
-                    (loss_results[0:epoch + 1], wer_results[0:epoch + 1], cer_results[0:epoch + 1]), dim=1)
+                    (loss_results[0:epoch + 1], wer_results[0:epoch + 1], cer_results[0:epoch + 1], mca_results[0:epoch + 1]), dim=1)
                 if viz_window is None:
                     viz_window = viz.line(
                         X=x_axis,
