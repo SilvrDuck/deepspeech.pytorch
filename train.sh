@@ -10,13 +10,16 @@ ID=$NOW$EXP_NAME
 
 SPLITS="data/CommonVoice_dataset/splits/"
 
-mkdir models/saved/${NOW}
+MODELS_PATH="models/saved"$ID
+mkdir $MODELS_PATH
+RUNS_PATH="runs/"$ID
+mkdir $RUNS_PATH
 
 python train.py \
 	--model deepspeech \
 	--train-manifest ${SPLITS}${DEV_OR_TRAIN}.csv \
 	--val-manifest ${SPLITS}test.csv \
-	--sample-rate 100600 \
+	--sample-rate 16000 \
 	--batch-size 20 \
 	--window-size .02 \
 	--window-stride .01 \
@@ -31,10 +34,10 @@ python train.py \
 	--learning-anneal 1.1 \
 	--checkpoint \
 	--tensorboard \
-	--log-dir runs/ \
+	--log-dir $RUNS_PATH \
 	--visdom \
-	--log-params \
-	--save-folder models/saved/${ID}/ \
+	--log-paramsi \
+	--save-folder $MODELS_PATH \
 	--model-path models/best/${ID}.pth \
 	--cuda \
 	--augment \
