@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 from overrides import overrides
 
+def name(loss):
+    return type(loss).__name__
 
 class MtLoss(nn.Module):
     """
@@ -37,6 +39,7 @@ class MtLoss(nn.Module):
 
         self.coefs = coefs        
         self.losses = losses
+        self.current_losses_values = None
 
     @overrides
     def forward(self, *inputs):
@@ -46,8 +49,11 @@ class MtLoss(nn.Module):
         '''
         assert len(inputs) == len(self.losses), 'There should be as many inputs as losses.'
 
-        losses_val = [l(*i)*c for l, i, c in zip(self.losses, inputs, self.coefs)]
-        losses_val = [e if (len(e.size()) > 0) else e.unsqueeze(0) for e in losses_val]
-        return torch.cat(losses_val, dim=0).sum()
+        losses_val = {name(l): l(*i)*c for l, i, c in zip(self.losses, inputs, self.coefs)}
+        losses_val = {k: v if (len(v.size()) > 0) else v.unsqueeze(0) for k, v in losses_val.items()}
+        self.current_losses_values = {k: float(v) for k, v in losses_val.items()}
+        print(self.current_losses_values)
+
+        return torch.cat(list(losses_val.values()), dim=0).sum()
 
     
