@@ -1,22 +1,24 @@
 #!/bin/bash
 
-EXP_NAME="Baseline_vanilla_deepspeech" # no spaces
+EXP_NAME="First_large_scale_accent_classification_test" # no spaces
 DEV_OR_TRAIN="train"
-EPOCHS='70'
-
+EPOCHS='4'
+MODEL='mtaccent' # deepspeech or mtaccent
 
 NOW=$(eval date +"%F_%Hh%M_")
 ID=$NOW$EXP_NAME
 
 SPLITS="data/CommonVoice_dataset/splits/"
 
-MODELS_PATH="models/saved"$ID
+MODELS_PATH="/data/thibault/deepspeech_saves/history/"$ID
 mkdir $MODELS_PATH
 RUNS_PATH="runs/"$ID
 mkdir $RUNS_PATH
 
-python train.py \
-	--model deepspeech \
+echo Starting $DEV_OR_TRAIN training of $MODEL model
+
+time python train.py \
+	--model $MODEL \
 	--train-manifest ${SPLITS}${DEV_OR_TRAIN}.csv \
 	--val-manifest ${SPLITS}test.csv \
 	--sample-rate 16000 \
@@ -26,6 +28,11 @@ python train.py \
 	--window hamming \
 	--hidden-size 800 \
 	--hidden-layers 5 \
+    --side-hidden-layers 4 \
+    --side-hidden-size 800 \
+    --side-rnn-type gru \
+    --shared-layers 2 \
+    --mixing-coef .5 \
 	--rnn-type gru \
 	--epochs $EPOCHS \
 	--lr 3e-4 \
