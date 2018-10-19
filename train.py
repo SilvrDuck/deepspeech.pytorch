@@ -34,6 +34,7 @@ parser.add_argument('--model', default='deepspeech', choices=['deepspeech','mtac
 parser.add_argument('--side-hidden-layers', default='4', type=int, help='Only for multi-task models. Number of layers in the side network')
 parser.add_argument('--side-hidden-size', default='800', type=int, help='Only for multi-task models. Size of the layers in the side network')
 parser.add_argument('--side-rnn-type', default='gru', help='Only for multi-task models. Type of the RNN in the side network. rnn|gru|lstm are supported')
+parser.add_argument('--bottleneck-size', default='40', type=int, help='Only for multi-task models. Size of the accent features going back in the main net.')
 parser.add_argument('--shared-layers', default='2', type=int, help='Only for multi-task models. Number of layers shared by the two networks')
 parser.add_argument('--mixing-coef', default='.5', type=restricted_float, help='Only for multi-task models. Coeficient for the losses. Formula is [coef*main_loss + (1-coef)*side_loss.]')
 # base arguments
@@ -236,6 +237,7 @@ if __name__ == '__main__':
                                 bidirectional=args.bidirectional)
         elif args.model == 'mtaccent':
             model = MtAccent(accents_size=len(accent_binarizer.classes_),
+                                bottleneck_size=args.bottleneck_size,
                                 rnn_hidden_size=args.hidden_size,
                                 nb_layers=args.hidden_layers,
                                 labels=labels,

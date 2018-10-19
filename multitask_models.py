@@ -15,7 +15,7 @@ from model import SequenceWise, MaskConv, InferenceBatchSoftmax, BatchRNN, Looka
 class MtAccent(DeepSpeech):
 
     @overrides
-    def __init__(self, accents_size, rnn_type=nn.LSTM, labels="abc", 
+    def __init__(self, accents_size, bottleneck_size=40, rnn_type=nn.LSTM, labels="abc", 
                 rnn_hidden_size=768, nb_layers=5, 
                 audio_conf=None, bidirectional=True, context=20,
                 side_nb_layers=4, side_rnn_hidden_size=768,
@@ -23,17 +23,26 @@ class MtAccent(DeepSpeech):
 
         assert nb_shared_layers <= nb_layers,'There must be less shared layers than main layers (nb_shared_layers <= nb_layers).'
         assert nb_shared_layers <= side_nb_layers,'There must be less shared layers than side layers (nb_shared_layers <= side_nb_layers).'
-
         super(MtAccent, self).__init__(rnn_type=rnn_type, labels=labels, 
-                                        rnn_hidden_size=rnn_hidden_size, nb_layers=nb_layers, 
+                                        rnn_hidden_size=rnn_hidden_size, nb_layers=nb_shared_layers, 
                                         audio_conf=audio_conf, bidirectional=bidirectional, 
                                         context=context)
+        # add extended rnn main layers
+        add_rnns = []
+        for i in range(nb_shared_layers, nb_layers):
+            rnn = BatchRNN(input_size=rnn_hidden_size + bottleneck_size, 
+                        hidden_size=rnn_hidden_size + bottleneck_size,
+                        rnn_type=rnn_type, 
+                        bidirectional=bidirectional, 
+                        batch_norm=False)
+            add_rnns.append((f'i', rnn))
+        self.add_rnns = nn.Sequential(OrderedDict(add_rnns))
+
         # Shared
         self.nb_shared_layers=nb_shared_layers
 
         # Side RNNs
         side_rnns = []
-
         rnn = BatchRNN(input_size=rnn_hidden_size, 
                         hidden_size=side_rnn_hidden_size,
                         rnn_type=side_rnn_type, 
@@ -50,11 +59,25 @@ class MtAccent(DeepSpeech):
 
         self.side_rnns = nn.Sequential(OrderedDict(side_rnns))
         
-        funnel = nn.Linear(side_rnn_hidden_size, accents_size)
-        sm = nn.LogSoftmax(dim=0)
-        self.logSoftmax = nn.Sequential(funnel, sm)
+        # soft max and bottleneck        
+        self.funnel = nn.Linear(side_rnn_hidden_size, bottleneck_size)
 
+        presm = nn.Linear(bottleneck_size, accents_size)
+        sm = nn.LogSoftmax(dim=0)
+        self.logSoftmax = nn.Sequential(presm, sm)
+
+        # fc 
+        fully_connected = nn.Sequential(
+            nn.BatchNorm1d(rnn_hidden_size + bottleneck_size),
+            nn.Linear(rnn_hidden_size + bottleneck_size, len(self._labels), bias=False)
+        )
+        self.fc = nn.Sequential(
+            SequenceWise(fully_connected),
+        )
+
+        # params to save
         self._accents_size = accents_size
+        self._bottleneck_size = bottleneck_size
         self._side_nb_layers = side_nb_layers
         self._side_rnn_hidden_size = side_rnn_hidden_size
         self._side_rnn_type = side_rnn_type
@@ -72,18 +95,20 @@ class MtAccent(DeepSpeech):
         x = x.transpose(1, 2).transpose(0, 1).contiguous()
 
         # Initialize shared layers
-        for i in range(self.nb_shared_layers):
+        for i in range(len(self.rnns)):
             x = self.rnns[i](x, output_lenghts)
 
         # Rest of side layers
         side_x = self.side_rnns[0](x, output_lenghts)
         for i in range(1, len(self.side_rnns)):
             side_x = self.side_rnns[i](x, output_lenghts)
-
-        side_x = self.logSoftmax(side_x)
+        bottleneck = self.funnel(side_x)
+        side_x = self.logSoftmax(bottleneck)
 
         # Rest of main layers
-        for i in range(self.nb_shared_layers, len(self.rnns)):
+        concat = torch.cat((x, bottleneck), dim=2)
+        x = self.add_rnns[0](concat, output_lenghts)
+        for i in range(1, len(self.add_rnns)):
             x = self.rnns[i](x, output_lenghts)
 
         if not self._bidirectional:
@@ -111,7 +136,7 @@ class MtAccent(DeepSpeech):
 
     @classmethod
     def load_model_package(cls, package):
-        model = cls(accents_size=package['accents_size'], rnn_hidden_size=package['hidden_size'], nb_layers=package['hidden_layers'],
+        model = cls(accents_size=package['accents_size'], bottleneck_size=package['bottleneck_size'], rnn_hidden_size=package['hidden_size'], nb_layers=package['hidden_layers'],
                     labels=package['labels'], audio_conf=package['audio_conf'],
                     rnn_type=supported_rnns[package['rnn_type']], bidirectional=package.get('bidirectional', True),
                     side_nb_layers=package['side_nb_layers'], 
@@ -129,6 +154,7 @@ class MtAccent(DeepSpeech):
         package = {
             'version': model._version,
             'accents_size': model._accents_size,
+            'bottleneck_size': model._bottleneck_size,
             'hidden_size': model._hidden_size,
             'hidden_layers': model._hidden_layers,
             'rnn_type': supported_rnns_inv.get(model._rnn_type, model._rnn_type.__name__.lower()),
