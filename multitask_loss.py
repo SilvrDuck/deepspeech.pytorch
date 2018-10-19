@@ -37,8 +37,9 @@ class MtLoss(nn.Module):
         else:
             coefs = [1]
 
-        self.coefs = coefs        
+        self.coefs = torch.tensor(coefs) 
         self.losses = losses
+        self.normalizing_coefs = torch.tensor([-1.] * len(losses))
         self.current_losses_values = None
 
     @overrides
@@ -49,11 +50,18 @@ class MtLoss(nn.Module):
         '''
         assert len(inputs) == len(self.losses), 'There should be as many inputs as losses.'
 
-        losses_val = {name(l): l(*i)*c for l, i, c in zip(self.losses, inputs, self.coefs)}
-        losses_val = {k: v if (len(v.size()) > 0) else v.unsqueeze(0) for k, v in losses_val.items()}
-        self.current_losses_values = {k: float(v) for k, v in losses_val.items()}
-        print(self.current_losses_values)
 
-        return torch.cat(list(losses_val.values()), dim=0).sum()
+        losses_val = {name(l): l(*i) for l, i in zip(self.losses, inputs)}
+        losses_val = {k: v if (len(v.size()) > 0) else v.unsqueeze(0) for k, v in losses_val.items()}
+        self.current_losses_values = {k: f'{float(v):.3f}' for k, v in losses_val.items()}
+
+        losses_val = torch.cat(list(losses_val.values()))
+
+        if self.normalizing_coefs[0] == -1:
+            self.normalizing_coefs = torch.tensor([max(losses_val) / e for e in losses_val])
+ 
+        losses_val = losses_val.mul(self.normalizing_coefs)
+        losses_val = losses_val.mul(self.coefs)
+        return losses_val.sum()
 
     

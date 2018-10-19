@@ -352,11 +352,15 @@ if __name__ == '__main__':
             batch_time.update(time.time() - end)
             end = time.time()
             if not args.silent:
+                sub_losses = criterion.current_losses_values if args.model == 'mtaccent' else 'n/a'
                 print('Epoch: [{0}][{1}/{2}]\t'
                       'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
                       'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
-                      'Loss {loss.val:.4f} ({loss.avg:.4f})\t'.format(
-                    (epoch + 1), (i + 1), len(train_sampler), batch_time=batch_time, data_time=data_time, loss=losses))
+                      'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
+                      '(Sub-losses: {sub_losses})\t'.format(
+                    (epoch + 1), (i + 1), len(train_sampler), 
+                    batch_time=batch_time, data_time=data_time, 
+                    loss=losses, sub_losses=sub_losses))
             if args.checkpoint_per_batch > 0 and i > 0 and (i + 1) % args.checkpoint_per_batch == 0 and main_proc:
                 file_path = '%s/deepspeech_checkpoint_epoch_%d_iter_%d.pth' % (save_folder, epoch + 1, i + 1)
                 print("Saving checkpoint model to %s" % file_path)
