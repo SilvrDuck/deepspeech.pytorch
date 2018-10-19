@@ -323,8 +323,7 @@ if __name__ == '__main__':
                 side_out = side_out.transpose(0, 1)  # TxNxH
             
                 # dummy_out = torch.sum(side_out, dim=1).long()
-                side_out = side_out.cuda()
-                loss = criterion((out, targets, output_sizes, target_sizes), (side_out, target_accents))
+                loss = criterion((out, targets, output_sizes, target_sizes), (side_out, target_accents.cuda()))
             
             loss = loss / inputs.size(0)  # average the loss by minibatch
 
