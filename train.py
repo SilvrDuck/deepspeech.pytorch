@@ -311,6 +311,7 @@ if __name__ == '__main__':
 
             if args.cuda:
                 inputs = inputs.cuda()
+                target_accents = target_accents.cuda()
 
             if args.model == 'deepspeech':
                 out, output_sizes = model(inputs, input_sizes)
