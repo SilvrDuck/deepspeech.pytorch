@@ -6,6 +6,8 @@ from torch.distributed import get_rank
 from torch.distributed import get_world_size
 from torch.utils.data.sampler import Sampler
 
+from sklearn.preprocessing import LabelBinarizer
+
 import librosa
 import numpy as np
 import scipy.signal
@@ -171,11 +173,23 @@ class SpectrogramDataset(Dataset, SpectrogramParser):
     def __len__(self):
         return self.size
 
-def create_binarizer(accent_list):
-    from sklearn.preprocessing import LabelBinarizer
-    lb = LabelBinarizer()
-    lb.fit(accent_list)
-    return lb
+def create_binarizer(manifest_filepath):
+    '''
+    Creates an label binarizer for the accents in the third column of the manifest.
+    
+    returns a sklearn.preprocessing.LabelBinarizer or None if no accents are in the manifest.  
+    '''
+    with open(manifest_filepath) as f:
+        ids = f.readlines()
+    ids = [x.strip().split(',') for x in ids]
+
+    if len(ids[0]) >= 3:
+        accent_list = list(set([x[2] for x in ids]))
+        lb = LabelBinarizer()
+        lb.fit(accent_list)
+        return lb
+    else:
+        return None
 
 class SpectrogramAccentDataset(SpectrogramDataset):
     '''
@@ -183,13 +197,9 @@ class SpectrogramAccentDataset(SpectrogramDataset):
     The target accents are output as one-hot vectors.
     '''
     @overrides
-    def __init__(self, audio_conf, manifest_filepath, labels, normalize=False, augment=False):
+    def __init__(self, audio_conf, manifest_filepath, labels, accent_binarizer, normalize=False, augment=False):
         super(SpectrogramAccentDataset, self).__init__(audio_conf, manifest_filepath, labels, normalize, augment)
-        try:
-            accent_list = list(set([x[2] for x in self.ids]))
-        except IndexError:
-            raise ValueError(f'{manifest_filepath} should have accent labels in its third column.')
-        self.accent_binarizer = create_binarizer(accent_list)
+        self.accent_binarizer = accent_binarizer
 
     @overrides
     def __getitem__(self, index):
@@ -219,7 +229,11 @@ def _collate_fn(batch):
         sample = batch[x]
         tensor = sample[0]
         target = sample[1]
-        accent = sample[2]
+        # CSV might not have the accent column
+        if len(sample) >= 3:
+            accent = sample[2]
+        else:
+            accent = [None]*len(target)
         seq_length = tensor.size(1)
         inputs[x][0].narrow(1, 0, seq_length).copy_(tensor)
         input_percentages[x] = seq_length / float(max_seqlength)
@@ -227,7 +241,10 @@ def _collate_fn(batch):
         targets.extend(target)
         target_accents.extend(accent)        
     targets = torch.IntTensor(targets)
-    target_accents = torch.LongTensor(target_accents)
+
+    if target_accents[0] is not None: # if we do not hav accents, returns a list of None
+        target_accents = torch.LongTensor(target_accents)
+
     return inputs, targets, input_percentages, target_sizes, target_accents
 
 

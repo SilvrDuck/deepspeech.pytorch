@@ -7,6 +7,7 @@ from tqdm import tqdm
 from data.data_loader import SpectrogramDataset, AudioDataLoader
 from decoder import GreedyDecoder
 from model import DeepSpeech
+from multitask_models import MtAccent
 from opts import add_decoder_args, add_inference_args
 
 parser = argparse.ArgumentParser(description='DeepSpeech transcription')
@@ -24,13 +25,25 @@ args = parser.parse_args()
 
 if __name__ == '__main__':
     torch.set_grad_enabled(False)
-    model = DeepSpeech.load_model(args.model_path)
+
+    # We try to load with different models until it works
+    # TODO do that in a cleaner way
+    try:
+        model = DeepSpeech.load_model(args.model_path)
+    except:
+        model = None
+    if model is None:
+        model = MtAccent.load_model(args.model_path)
+
+
     if args.cuda:
         model.cuda()
     model.eval()
 
-    labels = DeepSpeech.get_labels(model)
-    audio_conf = DeepSpeech.get_audio_conf(model)
+    model_type = f'{type(model).__name__}'.lower()
+
+    labels = type(model).get_labels(model)
+    audio_conf = type(model).get_audio_conf(model)
 
     if args.decoder == "beam":
         from decoder import BeamCTCDecoder
@@ -47,10 +60,11 @@ if __name__ == '__main__':
                                       normalize=True)
     test_loader = AudioDataLoader(test_dataset, batch_size=args.batch_size,
                                   num_workers=args.num_workers)
-    total_cer, total_wer, num_tokens, num_chars = 0, 0, 0, 0
+    total_cer, total_wer, total_mca, num_tokens, num_chars = 0, 0, 0, 0, 0
     output_data = []
+
     for i, (data) in tqdm(enumerate(test_loader), total=len(test_loader)):
-        inputs, targets, input_percentages, target_sizes = data
+        inputs, targets, input_percentages, target_sizes, target_accents = data
         input_sizes = input_percentages.mul_(int(inputs.size(3))).int()
 
         # unflatten targets
@@ -63,21 +77,28 @@ if __name__ == '__main__':
         if args.cuda:
             inputs = inputs.cuda()
 
-        out, output_sizes = model(inputs, input_sizes)
+        if model_type == 'deepspeech':
+            out, output_sizes = model(inputs, input_sizes)
+        elif model_type == 'mtaccent':
+            out, output_sizes, out_side = model(inputs, input_sizes)
 
         if decoder is None:
             # add output to data array, and continue
             output_data.append((out.numpy(), output_sizes.numpy()))
             continue
-
+        
         decoded_output, _ = decoder.decode(out.data, output_sizes.data)
         target_strings = target_decoder.convert_to_strings(split_targets)
         for x in range(len(target_strings)):
             transcript, reference = decoded_output[x][0], target_strings[x][0]
             wer_inst = decoder.wer(transcript, reference)
             cer_inst = decoder.cer(transcript, reference)
+
+            target_accents[x]
+            mca_inst = 0 # TODO
             total_wer += wer_inst
             total_cer += cer_inst
+            total_mca += mca_inst
             num_tokens += len(reference.split())
             num_chars += len(reference)
             if args.verbose:
@@ -88,9 +109,11 @@ if __name__ == '__main__':
     if decoder is not None:
         wer = float(total_wer) / num_tokens
         cer = float(total_cer) / num_chars
+        mca = float(total_mca) / len(target_strings)
 
         print('Test Summary \t'
               'Average WER {wer:.3f}\t'
-              'Average CER {cer:.3f}\t'.format(wer=wer * 100, cer=cer * 100))
+              'Average CER {cer:.3f}\t'
+              'Missclassified accents {mca:.3f}\t'.format(wer=wer * 100, cer=cer * 100, mca=mca * 100))
     else:
         np.save(args.output_path, output_data)

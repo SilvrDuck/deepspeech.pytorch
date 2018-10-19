@@ -49,3 +49,5 @@ class MtLoss(nn.Module):
         losses_val = [l(*i)*c for l, i, c in zip(self.losses, inputs, self.coefs)]
         losses_val = [e if (len(e.size()) > 0) else e.unsqueeze(0) for e in losses_val]
         return torch.cat(losses_val, dim=0).sum()
+
+    
