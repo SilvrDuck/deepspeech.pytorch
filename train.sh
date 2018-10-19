@@ -2,7 +2,7 @@
 
 EXP_NAME="First_large_scale_accent_classification_test" # no spaces
 DEV_OR_TRAIN="train"
-EPOCHS='4'
+EPOCHS='70'
 MODEL='mtaccent' # deepspeech or mtaccent
 
 NOW=$(eval date +"%F_%Hh%M_")
@@ -27,7 +27,8 @@ time python train.py \
 	--window-stride .01 \
 	--window hamming \
 	--hidden-size 800 \
-	--hidden-layers 5 \
+    --bottleneck-size 40 \
+    --hidden-layers 5 \
     --side-hidden-layers 4 \
     --side-hidden-size 800 \
     --side-rnn-type gru \
