@@ -36,7 +36,7 @@ python train.py \
 	--tensorboard \
 	--log-dir $RUNS_PATH \
 	--visdom \
-	--log-paramsi \
+	--log-params \
 	--save-folder $MODELS_PATH \
 	--model-path models/best/${ID}.pth \
 	--cuda \
