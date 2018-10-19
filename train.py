@@ -466,8 +466,10 @@ if __name__ == '__main__':
                     for tag, value in model.named_parameters():
                         tag = tag.replace('.', '/')
                         tensorboard_writer.add_histogram(tag, to_np(value), epoch + 1)
-                        print(tag, value) # TODO TODO
-                        tensorboard_writer.add_histogram(tag + '/grad', to_np(value.grad), epoch + 1)
+                        try: # TODO solve this
+                            tensorboard_writer.add_histogram(tag + '/grad', to_np(value.grad), epoch + 1)
+                        except:
+                            print('There was an error in tensorboard args.log_params')
             if args.checkpoint and main_proc:
                 file_path = '%s/deepspeech_%d.pth' % (save_folder, epoch + 1)
                 torch.save(type(model).serialize(model, optimizer=optimizer, epoch=epoch, loss_results=loss_results,
