@@ -136,6 +136,8 @@ if __name__ == '__main__':
     save_folder = args.save_folder
 
     loss_results = torch.Tensor(args.epochs)
+    main_loss_results = torch.Tensor(args.epochs)
+    side_loss_results = torch.Tensor(args.epochs)
     cer_results = torch.Tensor(args.epochs)
     wer_results = torch.Tensor(args.epochs)
     mca_results = torch.Tensor(args.epochs) # mca : missclassified accents
@@ -145,7 +147,8 @@ if __name__ == '__main__':
         from visdom import Visdom
 
         viz = Visdom()
-        opts = dict(title=args.id, ylabel='', xlabel='Epoch', legend=['Loss', 'WER', 'CER', 'Accents missclassified'])
+        opts = dict(title=args.id, ylabel='', xlabel='Epoch', 
+            legend=['Loss', 'main_loss', 'side_loss', 'WER', 'CER', 'Accents missclassified'])
         viz_window = None
         epochs = torch.arange(1, args.epochs + 1)
     if args.tensorboard and main_proc:
@@ -158,6 +161,8 @@ if __name__ == '__main__':
     accent_binarizer = create_binarizer(args.train_manifest)
 
     avg_loss, start_epoch, start_iter = 0, 0, 0
+    avg_main_loss, avg_side_loss = 0, 0
+
     if args.continue_from:  # Starting from previous model
         print("Loading checkpoint model %s" % args.continue_from)
         package = torch.load(args.continue_from, map_location=lambda storage, loc: storage)
@@ -168,8 +173,7 @@ if __name__ == '__main__':
         labels = type(model).get_labels(model)
         audio_conf = type(model).get_audio_conf(model)
         parameters = model.parameters()
-        optimizer = torch.optim.SGD(parameters, lr=args.lr,
-                                    momentum=args.momentum, nesterov=True)
+        optimizer = torch.optim.Adam(parameters, lr=args.lr)
         if not args.finetune:  # Don't want to restart training
             if args.cuda:
                 model.cuda()
@@ -182,16 +186,26 @@ if __name__ == '__main__':
             else:
                 start_iter += 1
             avg_loss = int(package.get('avg_loss', 0))
-            loss_results, cer_results, wer_results, mca_results = package['loss_results'], package[
-                'cer_results'], package['wer_results'], package['mca_results']
+            avg_main_loss = int(package.get('avg_main_loss', 0))
+            avg_side_loss = int(package.get('avg_side_loss', 0))
+            loss_results = package['loss_results']
+            main_loss_results = package['main_loss_results']
+            side_loss_results = package['side_loss_results']
+            cer_results = package['cer_results']
+            wer_results = package['wer_results']
+            mca_results = package['mca_results']
             
             if main_proc and args.visdom and \
                             package[
                                 'loss_results'] is not None and start_epoch > 0:  # Add previous scores to visdom graph
                 x_axis = epochs[0:start_epoch]
                 y_axis = torch.stack(
-                    (loss_results[0:start_epoch], wer_results[0:start_epoch], 
-                    cer_results[0:start_epoch]), mca_results[0:start_epoch],
+                    (loss_results[0:start_epoch], 
+                    main_loss_results[0:start_epoch], 
+                    side_loss_results[0:start_epoch], 
+                    wer_results[0:start_epoch], 
+                    cer_results[0:start_epoch]), 
+                    mca_results[0:start_epoch],
                     dim=1)
                 viz_window = viz.line(
                     X=x_axis,
@@ -250,8 +264,7 @@ if __name__ == '__main__':
                                 nb_shared_layers=args.shared_layers)
 
         parameters = model.parameters()
-        optimizer = torch.optim.SGD(parameters, lr=args.lr,
-                                    momentum=args.momentum, nesterov=True)
+        optimizer = torch.optim.Adam(parameters, lr=args.lr)
     
     if args.model == 'deepspeech':
         criterion = CTCLoss()
@@ -320,6 +333,7 @@ if __name__ == '__main__':
                 out = out.transpose(0, 1)  # TxNxH
                 
                 loss = criterion(out, targets, output_sizes, target_sizes)
+                main_loss, side_loss = torch.tensor(0), torch.tensor(0)
             elif args.model == 'mtaccent':
                 out, output_sizes, side_out = model(inputs, input_sizes)
                 out = out.transpose(0, 1)  # TxNxH
@@ -327,19 +341,35 @@ if __name__ == '__main__':
             
                 # dummy_out = torch.sum(side_out, dim=1).long()
                 loss = criterion((out, targets, output_sizes, target_sizes), (side_out.cpu(), target_accents))
+                main_loss, side_loss = criterion.get_sublosses()
+
             
             loss = loss / inputs.size(0)  # average the loss by minibatch
+            main_loss = main_loss / inputs.size(0)
+            side_loss = side_loss / inputs.size(0)
 
             inf = float("inf")
             if args.distributed:
                 loss_value = reduce_tensor(loss, args.world_size)[0]
+                main_loss_value = reduce_tensor(main_loss, args.world_size)[0]
+                side_loss_value = reduce_tensor(side_loss, args.world_size)[0]
             else:
                 loss_value = loss.item()
+                main_loss_value = main_loss.item()
+                side_loss_value = side_loss.item()
             if loss_value == inf or loss_value == -inf:
                 print("WARNING: received an inf loss, setting loss value to 0")
                 loss_value = 0
+            if main_loss_value == inf or main_loss_value == -inf:
+                print("WARNING: received an inf loss, setting loss value to 0")
+                main_loss_value = 0
+            if side_loss_value == inf or side_loss_value == -inf:
+                print("WARNING: received an inf side_loss, setting side_loss value to 0")
+                side_loss_value = 0
 
             avg_loss += loss_value
+            avg_main_loss += main_loss_value
+            avg_side_loss += side_loss_value
             losses.update(loss_value, inputs.size(0))
 
             # compute gradient
@@ -354,7 +384,7 @@ if __name__ == '__main__':
             batch_time.update(time.time() - end)
             end = time.time()
             if not args.silent:
-                sub_losses = criterion.current_losses_values if args.model == 'mtaccent' else 'n/a'
+                sub_losses = criterion.print_sublosses() if args.model == 'mtaccent' else 'n/a'
                 print('Epoch: [{0}][{1}/{2}]\t'
                       'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
                       'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
@@ -368,13 +398,20 @@ if __name__ == '__main__':
                 print("Saving checkpoint model to %s" % file_path)
                 torch.save(type(model).serialize(model, optimizer=optimizer, epoch=epoch, iteration=i,
                                                 loss_results=loss_results,
-                                                wer_results=wer_results, cer_results=cer_results, 
+                                                main_loss_results=main_loss_results,
+                                                side_loss_results=side_loss_results,
+                                                wer_results=wer_results, 
+                                                cer_results=cer_results, 
                                                 mca_results=mca_results,
-                                                avg_loss=avg_loss),
+                                                avg_loss=avg_loss,
+                                                avg_main_loss=avg_main_loss,
+                                                avg_side_loss=avg_side_loss),
                            file_path)
             del loss
             del out
         avg_loss /= len(train_sampler)
+        avg_main_loss /= len(train_sampler)
+        avg_side_loss /= len(train_sampler)
 
         epoch_time = time.time() - start_epoch_time
         print('Training Summary Epoch: [{0}]\t'
@@ -428,6 +465,8 @@ if __name__ == '__main__':
             cer *= 100
             
             loss_results[epoch] = avg_loss
+            main_loss_results[epoch] = avg_main_loss
+            side_loss_results[epoch] = avg_side_loss
             wer_results[epoch] = wer
             cer_results[epoch] = cer
             
@@ -479,7 +518,11 @@ if __name__ == '__main__':
                             print('There was an error in tensorboard args.log_params')
             if args.checkpoint and main_proc:
                 file_path = '%s/deepspeech_%d.pth' % (save_folder, epoch + 1)
-                torch.save(type(model).serialize(model, optimizer=optimizer, epoch=epoch, loss_results=loss_results,
+                torch.save(type(model).serialize(model, optimizer=optimizer, 
+                                                epoch=epoch, 
+                                                loss_results=loss_results,
+                                                main_loss_results=main_loss_results,
+                                                side_loss_results=side_loss_results,
                                                 wer_results=wer_results, cer_results=cer_results,
                                                 mca_results=mca_results),
                            file_path)
@@ -491,8 +534,13 @@ if __name__ == '__main__':
 
             if (best_wer is None or best_wer > wer) and main_proc:
                 print("Found better validated model, saving to %s" % args.model_path)
-                torch.save(type(model).serialize(model, optimizer=optimizer, epoch=epoch, loss_results=loss_results,
-                                                wer_results=wer_results, cer_results=cer_results), args.model_path)
+                torch.save(type(model).serialize(model, optimizer=optimizer, 
+                    epoch=epoch,
+                    loss_results=loss_results,
+                    main_loss_results=main_loss_results,
+                    side_loss_results=side_loss_results,
+                    wer_results=wer_results, 
+                    cer_results=cer_results), args.model_path)
                 best_wer = wer
 
                 avg_loss = 0

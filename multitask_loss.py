@@ -40,7 +40,7 @@ class MtLoss(nn.Module):
         self.coefs = torch.tensor(coefs) 
         self.losses = losses
         self.normalizing_coefs = torch.tensor([-1.] * len(losses))
-        self.current_losses_values = None
+        #self.current_losses = [-1] * len(losses)
 
     @overrides
     def forward(self, *inputs):
@@ -53,7 +53,7 @@ class MtLoss(nn.Module):
 
         losses_val = {name(l): l(*i) for l, i in zip(self.losses, inputs)}
         losses_val = {k: v if (len(v.size()) > 0) else v.unsqueeze(0) for k, v in losses_val.items()}
-        self.current_losses_values = {k: f'{float(v):.3f}' for k, v in losses_val.items()}
+        self.current_losses = losses_val
 
         losses_val = torch.cat(list(losses_val.values()))
 
@@ -64,4 +64,8 @@ class MtLoss(nn.Module):
         losses_val = losses_val.mul(self.coefs)
         return losses_val.sum()
 
-    
+    def get_sublosses(self):
+        return self.current_losses.values()
+
+    def print_sublosses(self):
+        return {k: f'{float(v):.3f}' for k, v in self.current_losses.items()}
