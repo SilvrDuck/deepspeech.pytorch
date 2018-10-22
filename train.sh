@@ -31,6 +31,11 @@ do
 key="$1"
 
 case $key in
+	--model)
+	MODEL="$2"
+	shift # past argument
+    shift # past value
+    ;;
     --exp-name)
 	EXP_NAME="$2"
 	shift # past argument
