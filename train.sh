@@ -1,52 +1,182 @@
 #!/bin/bash
 
-EXP_NAME="Test_with_Adam" # no spaces
-TEST_OR_TRAIN="train"
-EPOCHS='70'
+## Parameters
+
+EXP_NAME="__tmp__" # no spaces
+METHOD="mini" # train, test or mini
+
 MODEL='mtaccent' # deepspeech or mtaccent
 
+EPOCHS='70'
+LR='3e-4'
+
+HIDDEN_LAYERS='5'
+HIDDEN_SIZE='800'
+
+SIDE_HIDDEN_LAYERS='4'
+SHARED_LAYERS='2'
+
+BOTTLENECK_SIZE='40'
+MIXING_COEF='.5'
+SIDE_HIDDEN_SIZE=$HIDDEN_SIZE
+
+RNN_TYPE='gru'
+SIDE_RNN_TYPE=$RNN_TYPE
+
+## Get arguments
+
+POSITIONAL=()
+while [[ $# -gt 0 ]]
+do
+key="$1"
+
+case $key in
+    --exp-name)
+	EXP_NAME="$2"
+	shift # past argument
+    shift # past value
+    ;;
+	-m|--method)
+	METHOD="$2"
+	shift # past argument
+    shift # past value
+    ;;
+	--epochs)
+	EPOCHS="$2"
+	shift # past argument
+    shift # past value
+    ;;
+	--lr)
+	LR="$2"
+	shift # past argument
+    shift # past value
+    ;;
+	--hidden-layers)
+	HIDDEN_LAYERS="$2"
+	shift # past argument
+    shift # past value
+    ;;
+	--hidden-size)
+	HIDDEN_SIZE="$2"
+	shift # past argument
+    shift # past value
+    ;;
+	--side-hidden-layers)
+	SIDE_HIDDEN_LAYERS="$2"
+	shift # past argument
+    shift # past value
+    ;;
+	--shared-layers)
+	SHARED_LAYERS="$2"
+	shift # past argument
+    shift # past value
+    ;;
+	--bottleneck-size)
+	BOTTLENECK_SIZE="$2"
+	shift # past argument
+    shift # past value
+    ;;
+	--mixing-coef)
+	MIXING_COEF="$2"
+	shift # past argument
+    shift # past value
+    ;;
+	--side-hidden-size)
+	SIDE_HIDDEN_SIZE="$2"
+	shift # past argument
+    shift # past value
+    ;;
+	--rnn-type)
+	RNN_TYPE="$2"
+	shift # past argument
+    shift # past value
+    ;;
+	--side-rnn)
+	SIDE_RNN_TYPE="$2"
+	shift # past argument
+    shift # past value
+    ;;
+    *)    # unknown option
+    POSITIONAL+=("$1") # save it in an array for later
+    shift # past argument
+    ;;
+esac
+done
+set -- "${POSITIONAL[@]}" # restore positional parameters
+
+## Name
+
 NOW=$(eval date +"%F_%Hh%M_")
-ID=$NOW$EXP_NAME
+MODEL_DEPENDANT=''
+if [ "$MODEL" = "mtaccent" ] ; then
+	MODEL_DEPENDANT='_slyrs-'${SIDE_HIDDEN_LAYERS}x${SIDE_HIDDEN_SIZE}_shrd-${SHARED_LAYERS}_btnck-${BOTTLENECK_SIZE}
+fi
+
+ID=${NOW}${EXP_NAME}_model-${MODEL}_lr-${LR}_lyrs-${HIDDEN_LAYERS}x${HIDDEN_SIZE}${MODEL_DEPENDANT}
+
+## Roomkeeping
 
 SPLITS="data/CommonVoice_dataset/splits/"
 
-MODELS_PATH="/data/thibault/deepspeech_saves/history/"$ID
-mkdir $MODELS_PATH
-RUNS_PATH="runs/"$ID
-mkdir $RUNS_PATH
+if [ "$METHOD" = "mini" ] ; then
+	MODELS_PATH="models/tmp"
+	RUNS_PATH="runs/tmp"
+	VALIDATION=${SPLITS}minidev.csv
+	CUDA=''
+	EPOCHS='2'
+	HIDDEN_LAYERS='4'
+	HIDDEN_SIZE='80'
+	SIDE_HIDDEN_LAYERS='2'
+	SHARED_LAYERS='2'
+	BOTTLENECK_SIZE='10'
+	SIDE_HIDDEN_SIZE=$HIDDEN_SIZE
+	BATCH_SIZE='2'
+	TENSORBOARD=''
+	VISDOM=''
+else
+	MODELS_PATH="/data/thibault/deepspeech_saves/history/"$ID
+	mkdir $MODELS_PATH
+	RUNS_PATH="runs/"$ID
+	mkdir $RUNS_PATH
+	VALIDATION=${SPLITS}dev.csv
+	CUDA='--cuda'
+	TENSORBOARD='--tensorboard'
+	VISDOM='--visdom'
+	BATCH_SIZE='20'
+fi
 
-echo Starting $DEV_OR_TRAIN training of $MODEL model
+## Launching
+
+echo Starting ${METHOD}ing of $MODEL model
+echo Experiment ID: $ID
 
 time python train.py \
 	--model $MODEL \
-	--train-manifest ${SPLITS}${TEST_OR_TRAIN}.csv \
-	--val-manifest ${SPLITS}dev.csv \
+	--train-manifest ${SPLITS}${METHOD}.csv \
+	--val-manifest $VALIDATION \
 	--sample-rate 16000 \
-	--batch-size 20 \
+	--batch-size $BATCH_SIZE \
 	--window-size .02 \
 	--window-stride .01 \
 	--window hamming \
-	--hidden-size 800 \
-    --bottleneck-size 40 \
-    --hidden-layers 5 \
-    --side-hidden-layers 4 \
-    --side-hidden-size 800 \
-    --side-rnn-type gru \
-    --shared-layers 2 \
-    --mixing-coef .5 \
-	--rnn-type gru \
+	--hidden-size $HIDDEN_SIZE \
+    --bottleneck-size $BOTTLENECK_SIZE \
+    --hidden-layers $HIDDEN_LAYERS \
+    --side-hidden-layers $SIDE_HIDDEN_LAYERS \
+    --side-hidden-size $SIDE_HIDDEN_SIZE \
+    --side-rnn-type $SIDE_RNN_TYPE \
+    --shared-layers $SHARED_LAYERS \
+    --mixing-coef $MIXING_COEF \
+	--rnn-type $RNN_TYPE \
 	--epochs $EPOCHS \
-	--lr 3e-4 \
+	--lr $LR \
 	--momentum 0.9 \
 	--max-norm 400 \
 	--learning-anneal 1.1 \
-	--checkpoint \
-	--tensorboard \
+	--checkpoint $TENSORBOARD $VISDOM \
 	--log-dir $RUNS_PATH \
-	--visdom \
 	--log-params \
 	--save-folder $MODELS_PATH \
 	--model-path models/best/${ID}.pth \
-	--cuda \
-	--augment \
+	--augment $CUDA \
 	--id $ID
