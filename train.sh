@@ -1,7 +1,7 @@
 #!/bin/bash
 
-EXP_NAME="First_large_scale_accent_classification_test" # no spaces
-DEV_OR_TRAIN="train"
+EXP_NAME="Test_with_Adam" # no spaces
+TEST_OR_TRAIN="train"
 EPOCHS='70'
 MODEL='mtaccent' # deepspeech or mtaccent
 
@@ -19,8 +19,8 @@ echo Starting $DEV_OR_TRAIN training of $MODEL model
 
 time python train.py \
 	--model $MODEL \
-	--train-manifest ${SPLITS}${DEV_OR_TRAIN}.csv \
-	--val-manifest ${SPLITS}test.csv \
+	--train-manifest ${SPLITS}${TEST_OR_TRAIN}.csv \
+	--val-manifest ${SPLITS}dev.csv \
 	--sample-rate 16000 \
 	--batch-size 20 \
 	--window-size .02 \
