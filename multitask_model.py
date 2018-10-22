@@ -62,10 +62,9 @@ class MtAccent(DeepSpeech):
         # soft max and bottleneck        
         self.funnel = nn.Linear(side_rnn_hidden_size, bottleneck_size)
 
-        presm = nn.Linear(bottleneck_size, accents_size)
-        sm = nn.LogSoftmax(dim=0)
-        self.logSoftmax = nn.Sequential(presm, sm)
-
+        self.side_fc = nn.Linear(bottleneck_size, accents_size, bias=False)
+        self.side_softmax = nn.LogSoftmax(dim=1)
+        
         # fc 
         fully_connected = nn.Sequential(
             nn.BatchNorm1d(rnn_hidden_size + bottleneck_size),
@@ -86,37 +85,55 @@ class MtAccent(DeepSpeech):
 
     @overrides
     def forward(self, x, lenghts):
+        #print('NEW FORWARD')
+        #print('X base', x.size())
         lenghts = lenghts.cpu().int()
         output_lenghts = self.get_seq_lens(lenghts)
         x, _ = self.conv(x, output_lenghts)
-
+        #print('X conv', x.size())
         sizes = x.size()
         x = x.view(sizes[0], sizes[1] * sizes[2], sizes[3])
+        #print('X view', x.size())
         x = x.transpose(1, 2).transpose(0, 1).contiguous()
-
+        #print('X transpose', x.size())
         # Initialize shared layers
         for i in range(len(self.rnns)):
             x = self.rnns[i](x, output_lenghts)
+        #print('X shared rnn', x.size())
+
 
         # Rest of side layers
         side_x = self.side_rnns[0](x, output_lenghts)
+        #print('SIDE X rnns', side_x.size())
         for i in range(1, len(self.side_rnns)):
             side_x = self.side_rnns[i](x, output_lenghts)
+        #print('SIDE X other rnns', side_x.size())
         bottleneck = self.funnel(side_x)
-        side_x = self.logSoftmax(bottleneck)
+        #print('SIDE X BOTTLE', bottleneck.size())
+        side_x = self.side_fc(bottleneck)
+        #print('SIDE X fully co', side_x.size())
+        side_x = side_x[-1]
+        #print('SIDE X take last', side_x.size())
+        side_x = self.side_softmax(side_x)
+        #print('SIDE X softmax', side_x.size())
 
         # Rest of main layers
         concat = torch.cat((x, bottleneck), dim=2)
+        #print('CONCAT', concat.size())
         x = self.add_rnns[0](concat, output_lenghts)
+        #print('X more rnn', x.size())
         for i in range(1, len(self.add_rnns)):
             x = self.rnns[i](x, output_lenghts)
-
+        #print('X more more rnn', x.size())
         if not self._bidirectional:
             x = self.lookahead(x)
-
         x = self.fc(x)
+        #print('X fully co', x.size())
         x = x.transpose(0, 1)
+        #print('X transpose', x.size())
         x = self.inference_softmax(x)
+        #print('X infer softmax', x.size())
+
         return x, output_lenghts, side_x
 
 

@@ -18,7 +18,7 @@ from data.data_loader import AudioDataLoader, SpectrogramAccentDataset, Bucketin
 from data.utils import reduce_tensor
 from decoder import GreedyDecoder
 from model import DeepSpeech, supported_rnns
-from multitask_models import MtAccent
+from multitask_model import MtAccent
 from multitask_loss import MtLoss
 
 def restricted_float(x):
@@ -337,9 +337,9 @@ if __name__ == '__main__':
             elif args.model == 'mtaccent':
                 out, output_sizes, side_out = model(inputs, input_sizes)
                 out = out.transpose(0, 1)  # TxNxH
-                side_out = side_out.transpose(0, 1)  # TxNxH
             
                 # dummy_out = torch.sum(side_out, dim=1).long()
+                target_accents = np.argmax(target_accents, axis=1) # TODO check if this could be done elsewhere…
                 loss = criterion((out, targets, output_sizes, target_sizes), (side_out.cpu(), target_accents))
                 main_loss, side_loss = criterion.get_sublosses()
 
@@ -439,11 +439,13 @@ if __name__ == '__main__':
                 if args.model == 'deepspeech':
                     out, output_sizes = model(inputs, input_sizes)
                 elif args.model == 'mtaccent':
-                    out, output_sizes, side_out = model(inputs, input_sizes) # TODO do smthg with side_out
+                    out, output_sizes, side_out = model(inputs, input_sizes)
                     mca = 0
+
                     for x in range(len(target_accents)):
-                        accent_out = np.argmax(side_out[x][0])
-                        accent_target = target_accents[x][0]
+                        accent_out = np.argmax(torch.exp(side_out[x])) # take exp because we do logsoftmax
+                        accent_target = np.argmax(target_accents[x])
+
                         if accent_out != accent_target:
                             mca += 1
                     total_mca += mca

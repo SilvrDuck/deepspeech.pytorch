@@ -20,8 +20,6 @@ class MtLoss(nn.Module):
     @overrides
     def __init__(self, *losses, mixing_coef=.5):
         super(MtLoss, self).__init__()
-        print(len(losses))
-        print(type(losses))
 
         if len(losses) > 1:
             if isinstance(mixing_coef, (float, int)):
