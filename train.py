@@ -313,6 +313,8 @@ if __name__ == '__main__':
     data_time = AverageMeter()
     losses = AverageMeter()
 
+    ## TRAIN ##
+
     for epoch in range(start_epoch, args.epochs):
         model.train()
         end = time.time()
@@ -361,7 +363,7 @@ if __name__ == '__main__':
                 print("WARNING: received an inf loss, setting loss value to 0")
                 loss_value = 0
             if main_loss_value == inf or main_loss_value == -inf:
-                print("WARNING: received an inf loss, setting loss value to 0")
+                print("WARNING: received an inf main_loss, setting loss value to 0")
                 main_loss_value = 0
             if side_loss_value == inf or side_loss_value == -inf:
                 print("WARNING: received an inf side_loss, setting side_loss value to 0")
@@ -419,6 +421,9 @@ if __name__ == '__main__':
               'Average Loss {loss:.3f}\t'.format(epoch + 1, epoch_time=epoch_time, loss=avg_loss))
 
         start_iter = 0  # Reset start iteration for next epoch
+
+        ## VALIDATION ##
+
         total_cer, total_wer, total_mca = 0, 0, 0
         model.eval()
         with torch.no_grad():
