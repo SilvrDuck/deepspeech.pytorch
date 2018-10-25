@@ -34,11 +34,10 @@ class MtLoss(nn.Module):
                 raise ValueError('mixing_coef should be either a float or a list of floats of length equal to the number of losses number of losses')
         else:
             coefs = [1]
-
         self.coefs = torch.tensor(coefs) 
+
         self.losses = losses
-        self.normalizing_coefs = torch.tensor([-1.] * len(losses))
-        #self.current_losses = [-1] * len(losses)
+        self.normalizing_coefs = None
 
     @overrides
     def forward(self, *inputs):
@@ -55,9 +54,10 @@ class MtLoss(nn.Module):
 
         losses_val = torch.cat(list(losses_val.values()))
 
-        if self.normalizing_coefs[0] == -1:
-            self.normalizing_coefs = torch.tensor([max(losses_val) / e for e in losses_val])
- 
+        if self.normalizing_coefs is None:
+            with torch.no_grad():
+                self.normalizing_coefs = 100. / losses_val
+
         losses_val = losses_val.mul(self.normalizing_coefs)
         losses_val = losses_val.mul(self.coefs)
         return losses_val.sum() / len(self.losses)

@@ -37,6 +37,7 @@ parser.add_argument('--side-rnn-type', default='gru', help='Only for multi-task 
 parser.add_argument('--bottleneck-size', default='40', type=int, help='Only for multi-task models. Size of the accent features going back in the main net.')
 parser.add_argument('--shared-layers', default='2', type=int, help='Only for multi-task models. Number of layers shared by the two networks')
 parser.add_argument('--mixing-coef', default='.5', type=restricted_float, help='Only for multi-task models. Coeficient for the losses. Formula is [coef*main_loss + (1-coef)*side_loss.]')
+parser.add_argument('--optimizer', default='adam', choices=['adam','sgd'], help='Decide which optimizer to use. Available:adam, sgd')
 # base arguments
 parser.add_argument('--train-manifest', metavar='DIR',
                     help='path to train manifest csv', default='data/train_manifest.csv')
@@ -173,7 +174,13 @@ if __name__ == '__main__':
         labels = type(model).get_labels(model)
         audio_conf = type(model).get_audio_conf(model)
         parameters = model.parameters()
-        optimizer = torch.optim.Adam(parameters, lr=args.lr)
+
+        if args.optimizer == "adam":
+            optimizer = torch.optim.Adam(parameters, lr=args.lr)
+        elif args.optimizer == "sgd":
+            optimizer = torch.optim.SGD(parameters, lr=args.lr,
+                                    momentum=args.momentum, nesterov=True)
+
         if not args.finetune:  # Don't want to restart training
             if args.cuda:
                 model.cuda()
@@ -264,7 +271,11 @@ if __name__ == '__main__':
                                 nb_shared_layers=args.shared_layers)
 
         parameters = model.parameters()
-        optimizer = torch.optim.Adam(parameters, lr=args.lr)
+        if args.optimizer == "adam":
+            optimizer = torch.optim.Adam(parameters, lr=args.lr)
+        elif args.optimizer == "sgd":
+            optimizer = torch.optim.SGD(parameters, lr=args.lr,
+                                momentum=args.momentum, nesterov=True)
     
     if args.model == 'deepspeech':
         criterion = CTCLoss()
@@ -340,7 +351,6 @@ if __name__ == '__main__':
                 out, output_sizes, side_out = model(inputs, input_sizes)
                 out = out.transpose(0, 1)  # TxNxH
             
-                # dummy_out = torch.sum(side_out, dim=1).long()
                 target_accents = np.argmax(target_accents, axis=1) # TODO check if this could be done elsewhere…
                 loss = criterion((out, targets, output_sizes, target_sizes), (side_out.cpu(), target_accents))
                 main_loss, side_loss = criterion.get_sublosses()
@@ -379,7 +389,7 @@ if __name__ == '__main__':
             loss.backward()
 
             torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_norm)
-            # SGD step
+            # Optimizer step
             optimizer.step()
 
             # measure elapsed time
