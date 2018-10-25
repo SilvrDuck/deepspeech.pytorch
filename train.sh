@@ -7,7 +7,7 @@ METHOD="mini" # train, test or mini
 
 MODEL='mtaccent' # deepspeech or mtaccent
 
-EPOCHS='70'
+EPOCHS='50'
 LR='3e-4'
 
 HIDDEN_LAYERS='5'
@@ -114,7 +114,7 @@ set -- "${POSITIONAL[@]}" # restore positional parameters
 NOW=$(eval date +"%F_%Hh%M_")
 MODEL_DEPENDANT=''
 if [ "$MODEL" = "mtaccent" ] ; then
-	MODEL_DEPENDANT='_slyrs-'${SIDE_HIDDEN_LAYERS}x${SIDE_HIDDEN_SIZE}_shrd-${SHARED_LAYERS}_btnck-${BOTTLENECK_SIZE}
+	MODEL_DEPENDANT='_slyrs-'${SIDE_HIDDEN_LAYERS}x${SIDE_HIDDEN_SIZE}_shrd-${SHARED_LAYERS}_btnck-${BOTTLENECK_SIZE}_mix-${MIXING_COEF}
 fi
 
 ID=${NOW}${EXP_NAME}_model-${MODEL}_lr-${LR}_lyrs-${HIDDEN_LAYERS}x${HIDDEN_SIZE}${MODEL_DEPENDANT}
@@ -152,8 +152,8 @@ fi
 
 ## Launching
 
-echo Starting ${METHOD}ing of $MODEL model
-echo Experiment ID: $ID
+echo ${METHOD}ing of $MODEL model
+echo experiment ID: $ID
 
 time python train.py \
 	--model $MODEL \

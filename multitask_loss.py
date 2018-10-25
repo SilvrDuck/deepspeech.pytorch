@@ -60,7 +60,7 @@ class MtLoss(nn.Module):
  
         losses_val = losses_val.mul(self.normalizing_coefs)
         losses_val = losses_val.mul(self.coefs)
-        return losses_val.sum()
+        return losses_val.sum() / len(self.losses)
 
     def get_sublosses(self):
         return self.current_losses.values()
