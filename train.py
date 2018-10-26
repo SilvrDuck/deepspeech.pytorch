@@ -3,6 +3,8 @@ import json
 import os
 import time
 
+from timer import Timer
+
 import numpy as np
 
 import torch
@@ -125,6 +127,8 @@ class AverageMeter(object):
 
 
 if __name__ == '__main__':
+    t = Timer()
+
     args = parser.parse_args()
     args.distributed = args.world_size > 1
     main_proc = True
@@ -249,6 +253,7 @@ if __name__ == '__main__':
             side_rnn_type = args.side_rnn_type.lower()
             assert side_rnn_type in supported_rnns, "side_rnn_type should be either lstm, rnn or gru"
 
+        t.add('creates model')
         if args.model == 'deepspeech':
             model = DeepSpeech(rnn_hidden_size=args.hidden_size,
                                 nb_layers=args.hidden_layers,
@@ -284,43 +289,28 @@ if __name__ == '__main__':
 
     decoder = GreedyDecoder(labels)
 
-    # TIMEIT
-    import timeit
-    start_time = timeit.default_timer()
-    # TIEMIT
-
+    t.add('starts SpectrogramDataset')
     train_dataset = SpectrogramAccentDataset(audio_conf=audio_conf, manifest_filepath=args.train_manifest, labels=labels,
                                        normalize=True, augment=args.augment, accent_binarizer=accent_binarizer)
     test_dataset = SpectrogramAccentDataset(audio_conf=audio_conf, manifest_filepath=args.val_manifest, labels=labels,
                                       normalize=True, augment=False, accent_binarizer=accent_binarizer)
 
-    # TIMEIT
-    elapsed = timeit.default_timer() - start_time  
-    print('Time to create Spectrograms:', elapsed)
-    # TIEMIT
 
-    # TIMEIT
-    start_time = timeit.default_timer()
-    # TIEMIT
-
+    t.add('start bucketing sampler')
     if not args.distributed:
         train_sampler = BucketingSampler(train_dataset, batch_size=args.batch_size)
     else:
         train_sampler = DistributedBucketingSampler(train_dataset, batch_size=args.batch_size,
                                                     num_replicas=args.world_size, rank=args.rank)
+    t.add('start Audiodataloader')
     train_loader = AudioDataLoader(train_dataset,
                                    num_workers=args.num_workers, batch_sampler=train_sampler)
     test_loader = AudioDataLoader(test_dataset, batch_size=args.batch_size,
                                   num_workers=args.num_workers)
-
+    t.add('starts shuffling batches')
     if (not args.no_shuffle and start_epoch != 0) or args.no_sorta_grad:
         print("Shuffling batches for the following epochs")
         train_sampler.shuffle(start_epoch)
-
-    # TIMEIT
-    elapsed = timeit.default_timer() - start_time  
-    print('Time to load data:', elapsed)
-    # TIEMIT
 
     if args.cuda:
         model.cuda()
@@ -344,8 +334,9 @@ if __name__ == '__main__':
     losses = AverageMeter()
 
     ## TRAIN ##
-
+    t.add('starts epochs')
     for epoch in range(start_epoch, args.epochs):
+        t.add(f'begin epoch {epoch}')
         model.train()
         end = time.time()
         start_epoch_time = time.time()
@@ -359,7 +350,7 @@ if __name__ == '__main__':
             print("data time", data_time.val)
             if args.cuda:
                 inputs = inputs.cuda()
-
+            t.add(f'epoch {epoch}, batch {i} forward pass')
             if args.model == 'deepspeech':
                 out, output_sizes = model(inputs, input_sizes)
                 out = out.transpose(0, 1)  # TxNxH
@@ -397,7 +388,7 @@ if __name__ == '__main__':
             if side_loss_value == inf or side_loss_value == -inf:
                 print("WARNING: received an inf side_loss, setting side_loss value to 0")
                 side_loss_value = 0
-
+            t.add(f'epoch {epoch} backward pass')
             avg_loss += loss_value
             avg_main_loss += main_loss_value
             avg_side_loss += side_loss_value
@@ -410,6 +401,7 @@ if __name__ == '__main__':
             torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_norm)
             # Optimizer step
             optimizer.step()
+            t.add('starts computing stuff to print')
 
             # measure elapsed time
             batch_time.update(time.time() - end)
@@ -452,7 +444,7 @@ if __name__ == '__main__':
         start_iter = 0  # Reset start iteration for next epoch
 
         ## VALIDATION ##
-
+        t.print_report()
         total_cer, total_wer, total_mca = 0, 0, 0
         model.eval()
         with torch.no_grad():
