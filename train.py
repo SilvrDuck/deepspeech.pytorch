@@ -333,6 +333,7 @@ if __name__ == '__main__':
     data_time = AverageMeter()
     losses = AverageMeter()
 
+    t.print_report()
     ## TRAIN ##
     t.add('starts epochs')
     for epoch in range(start_epoch, args.epochs):
