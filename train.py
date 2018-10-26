@@ -284,10 +284,24 @@ if __name__ == '__main__':
 
     decoder = GreedyDecoder(labels)
 
+    # TIMEIT
+    import timeit
+    start_time = timeit.default_timer()
+    # TIEMIT
+
     train_dataset = SpectrogramAccentDataset(audio_conf=audio_conf, manifest_filepath=args.train_manifest, labels=labels,
                                        normalize=True, augment=args.augment, accent_binarizer=accent_binarizer)
     test_dataset = SpectrogramAccentDataset(audio_conf=audio_conf, manifest_filepath=args.val_manifest, labels=labels,
                                       normalize=True, augment=False, accent_binarizer=accent_binarizer)
+
+    # TIMEIT
+    elapsed = timeit.default_timer() - start_time  
+    print('Time to create Spectrograms:', elapsed)
+    # TIEMIT
+
+    # TIMEIT
+    start_time = timeit.default_timer()
+    # TIEMIT
 
     if not args.distributed:
         train_sampler = BucketingSampler(train_dataset, batch_size=args.batch_size)
@@ -302,6 +316,11 @@ if __name__ == '__main__':
     if (not args.no_shuffle and start_epoch != 0) or args.no_sorta_grad:
         print("Shuffling batches for the following epochs")
         train_sampler.shuffle(start_epoch)
+
+    # TIMEIT
+    elapsed = timeit.default_timer() - start_time  
+    print('Time to load data:', elapsed)
+    # TIEMIT
 
     if args.cuda:
         model.cuda()
@@ -337,7 +356,7 @@ if __name__ == '__main__':
             input_sizes = input_percentages.mul_(int(inputs.size(3))).int()
             # measure data loading time
             data_time.update(time.time() - end)
-
+            print("data time", data_time.val)
             if args.cuda:
                 inputs = inputs.cuda()
 

@@ -18,8 +18,10 @@ from torch.utils.data import DataLoader
 from torch.utils.data import Dataset
 from overrides import overrides
 
-windows = {'hamming': scipy.signal.hamming, 'hann': scipy.signal.hann, 'blackman': scipy.signal.blackman,
-           'bartlett': scipy.signal.bartlett}
+windows = {'hamming': scipy.signal.hamming, 
+            'hann': scipy.signal.hann, 
+            'blackman': scipy.signal.blackman,
+            'bartlett': scipy.signal.bartlett}
 
 
 def load_audio(path):
@@ -176,7 +178,6 @@ class SpectrogramDataset(Dataset, SpectrogramParser):
 def create_binarizer(manifest_filepath):
     '''
     Creates an label binarizer for the accents in the third column of the manifest.
-    
     returns a sklearn.preprocessing.LabelBinarizer or None if no accents are in the manifest.  
     '''
     with open(manifest_filepath) as f:
