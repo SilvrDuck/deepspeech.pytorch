@@ -37,6 +37,7 @@ class MtLoss(nn.Module):
         self.coefs = torch.tensor(coefs) 
 
         self.losses = losses
+        self.num_loss = len(losses)
         self.normalizing_coefs = None
 
     @overrides
@@ -45,7 +46,7 @@ class MtLoss(nn.Module):
         inputs: tuple of the inputs for each losses, in the same order
         they were given to the constructor.
         '''
-        assert len(inputs) == len(self.losses), 'There should be as many inputs as losses.'
+        assert len(inputs) == self.num_loss, 'There should be as many inputs as losses.'
 
 
         losses_val = {name(l): l(*i) for l, i in zip(self.losses, inputs)}
@@ -56,14 +57,16 @@ class MtLoss(nn.Module):
 
         if self.normalizing_coefs is None:
             with torch.no_grad():
-                self.normalizing_coefs = 100. / losses_val
+                self.normalizing_coefs = self.num_loss * 100. / losses_val
+                # the first combined loss will always have a value of 100
 
         losses_val = losses_val.mul(self.normalizing_coefs)
         losses_val = losses_val.mul(self.coefs)
-        return losses_val.sum() / len(self.losses)
+
+        return losses_val.sum() / self.num_loss
 
     def get_sublosses(self):
-        return self.current_losses.values()
+        return torch.cat(list(self.current_losses.values())).mul(self.normalizing_coefs)
 
     def print_sublosses(self):
         return {k: f'{float(v):.3f}' for k, v in self.current_losses.items()}

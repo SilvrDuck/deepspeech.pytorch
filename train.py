@@ -335,7 +335,7 @@ if __name__ == '__main__':
     data_time = AverageMeter()
     losses = AverageMeter()
 
-    t.print_report()
+    #t.print_report()
     ## TRAIN ##
     t.add('starts epochs')
     for epoch in range(start_epoch, args.epochs):
@@ -350,7 +350,7 @@ if __name__ == '__main__':
             input_sizes = input_percentages.mul_(int(inputs.size(3))).int()
             # measure data loading time
             data_time.update(time.time() - end)
-            print("data time", data_time.val)
+
             if args.cuda:
                 inputs = inputs.cuda()
             t.add(f'epoch {epoch}, batch {i} forward pass')
@@ -373,7 +373,6 @@ if __name__ == '__main__':
             main_loss = main_loss / inputs.size(0)
             side_loss = side_loss / inputs.size(0)
 
-            inf = float("inf")
             if args.distributed:
                 loss_value = reduce_tensor(loss, args.world_size)[0]
                 main_loss_value = reduce_tensor(main_loss, args.world_size)[0]
@@ -382,6 +381,8 @@ if __name__ == '__main__':
                 loss_value = loss.item()
                 main_loss_value = main_loss.item()
                 side_loss_value = side_loss.item()
+
+            inf = float("inf")
             if loss_value == inf or loss_value == -inf:
                 print("WARNING: received an inf loss, setting loss value to 0")
                 loss_value = 0
@@ -392,6 +393,7 @@ if __name__ == '__main__':
                 print("WARNING: received an inf side_loss, setting side_loss value to 0")
                 side_loss_value = 0
             t.add(f'epoch {epoch} backward pass')
+
             avg_loss += loss_value
             avg_main_loss += main_loss_value
             avg_side_loss += side_loss_value
@@ -447,7 +449,7 @@ if __name__ == '__main__':
         start_iter = 0  # Reset start iteration for next epoch
 
         ## VALIDATION ##
-        t.print_report()
+        #t.print_report()
         total_cer, total_wer, total_mca = 0, 0, 0
         model.eval()
         with torch.no_grad():
@@ -478,6 +480,7 @@ if __name__ == '__main__':
                         if accent_out != accent_target:
                             mca += 1
                     total_mca += mca
+
                 decoded_output, _ = decoder.decode(out.data, output_sizes)
                 target_strings = decoder.convert_to_strings(split_targets)
                 wer, cer = 0, 0
@@ -552,8 +555,9 @@ if __name__ == '__main__':
                         tensorboard_writer.add_histogram(tag, to_np(value), epoch + 1)
                         try: # TODO solve this
                             tensorboard_writer.add_histogram(tag + '/grad', to_np(value.grad), epoch + 1)
-                        except:
-                            print('There was an error in tensorboard args.log_params')
+                        except Exception as e:
+                            print('There was an error in tensorboard args.log_params:')
+                            print(e)
             if args.checkpoint and main_proc:
                 file_path = '%s/deepspeech_%d.pth' % (save_folder, epoch + 1)
                 torch.save(type(model).serialize(model, optimizer=optimizer, 
