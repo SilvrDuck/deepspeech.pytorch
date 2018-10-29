@@ -1,4 +1,13 @@
 from timeit import default_timer as timer
+import argparse
+
+
+
+def restricted_float(x):
+    x = float(x)
+    if x < 0.0 or x > 1.0:
+        raise argparse.ArgumentTypeError(f'{x} not in range [0.0, 1.0]')     
+    return x
 
 
 class Timer():
@@ -46,3 +55,22 @@ class Timer():
         for row in self.events:
             print(''.join(cropped(v).rjust(col_width[k]) for k, v in row.items()))
         print('### End report   ###')
+
+
+class AverageMeter(object):
+    """Computes and stores the average and current value"""
+
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.val = 0
+        self.avg = 0
+        self.sum = 0
+        self.count = 0
+
+    def update(self, val, n=1):
+        self.val = val
+        self.sum += val * n
+        self.count += n
+        self.avg = self.sum / self.count

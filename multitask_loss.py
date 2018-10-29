@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from overrides import overrides
+from utils import AverageMeter
 
 def name(loss):
     return type(loss).__name__
@@ -34,11 +35,13 @@ class MtLoss(nn.Module):
                 raise ValueError('mixing_coef should be either a float or a list of floats of length equal to the number of losses number of losses')
         else:
             coefs = [1]
-        self.coefs = torch.tensor(coefs) 
+        self.mix_coefs = torch.tensor(coefs)
 
         self.losses = losses
+        self.names = [type(l).__name__ for l in self.losses]
         self.num_loss = len(losses)
-        self.normalizing_coefs = None
+        self.normalizing_coefs = [AverageMeter() for __ in range(self.num_loss)]
+        self.update_coefs = True
 
     @overrides
     def forward(self, *inputs):
@@ -48,25 +51,33 @@ class MtLoss(nn.Module):
         '''
         assert len(inputs) == self.num_loss, 'There should be as many inputs as losses.'
 
+        vals = [l(*i) for l, i in zip(self.losses, inputs)]
+        vals = [e if (len(e.size()) > 0) else e.unsqueeze(0) for e in vals] # because all losses doesn’t give the same dimension
+        vals = torch.cat(vals)
+        
+        if self.update_coefs:
+            self.update_coef_tensor(vals)
 
-        losses_val = {name(l): l(*i) for l, i in zip(self.losses, inputs)}
-        losses_val = {k: v if (len(v.size()) > 0) else v.unsqueeze(0) for k, v in losses_val.items()}
-        self.current_losses = losses_val
+        vals = vals.mul(self.get_coef_tensor())
+        self.current_losses = vals
 
-        losses_val = torch.cat(list(losses_val.values()))
 
-        if self.normalizing_coefs is None:
-            with torch.no_grad():
-                self.normalizing_coefs = self.num_loss * 100. / losses_val
-                # the first combined loss will always have a value of 100
+        vals = vals.mul(self.mix_coefs)
+        return vals.sum()
 
-        losses_val = losses_val.mul(self.normalizing_coefs)
-        losses_val = losses_val.mul(self.coefs)
+    def get_coef_tensor(self):
+        return torch.tensor([100. / x.avg for x in self.normalizing_coefs])
 
-        return losses_val.sum() / self.num_loss
+    def update_coef_tensor(self, tensor_):
+        assert len(tensor_) == len(self.normalizing_coefs)
+        for e, x in zip(self.normalizing_coefs, tensor_):
+            e.update(x)
 
     def get_sublosses(self):
-        return torch.cat(list(self.current_losses.values())).mul(self.normalizing_coefs)
+        return self.current_losses
 
     def print_sublosses(self):
-        return {k: f'{float(v):.3f}' for k, v in self.current_losses.items()}
+        return {n: f'{float(v):.3f}' for n, v in zip(self.names, self.current_losses)}
+
+    def toggle_update_coefs(self, new_value):
+        self.update_coefs = new_value

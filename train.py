@@ -3,7 +3,7 @@ import json
 import os
 import time
 
-from timer import Timer
+from utils import Timer, AverageMeter, restricted_float
 
 import numpy as np
 
@@ -23,11 +23,6 @@ from model import DeepSpeech, supported_rnns
 from multitask_model import MtAccent
 from multitask_loss import MtLoss
 
-def restricted_float(x):
-    x = float(x)
-    if x < 0.0 or x > 1.0:
-        raise argparse.ArgumentTypeError(f'{x} not in range [0.0, 1.0]')     
-    return x
 
 parser = argparse.ArgumentParser(description='DeepSpeech training')
 
@@ -106,24 +101,6 @@ torch.cuda.manual_seed_all(123456)
 def to_np(x):
     return x.data.cpu().numpy()
 
-
-class AverageMeter(object):
-    """Computes and stores the average and current value"""
-
-    def __init__(self):
-        self.reset()
-
-    def reset(self):
-        self.val = 0
-        self.avg = 0
-        self.sum = 0
-        self.count = 0
-
-    def update(self, val, n=1):
-        self.val = val
-        self.sum += val * n
-        self.count += n
-        self.avg = self.sum / self.count
 
 
 if __name__ == '__main__':
@@ -287,7 +264,7 @@ if __name__ == '__main__':
     if args.model == 'deepspeech':
         criterion = CTCLoss()
     elif args.model == 'mtaccent':
-        criterion = MtLoss(CTCLoss(), CrossEntropyLoss())
+        criterion = MtLoss(CTCLoss(), CrossEntropyLoss(), mixing_coef=args.mixing_coef)
 
     decoder = GreedyDecoder(labels)
 
@@ -358,6 +335,7 @@ if __name__ == '__main__':
             if args.cuda:
                 inputs = inputs.cuda()
             t.add(f'epoch {epoch}, batch {i} forward pass')
+
             if args.model == 'deepspeech':
                 out, output_sizes = model(inputs, input_sizes)
                 out = out.transpose(0, 1)  # TxNxH
@@ -365,9 +343,11 @@ if __name__ == '__main__':
                 loss = criterion(out, targets, output_sizes, target_sizes)
                 main_loss, side_loss = torch.tensor(0), torch.tensor(0)
             elif args.model == 'mtaccent':
+                if epoch != 0:
+                    criterion.toggle_update_coefs(new_value=False)
+
                 out, output_sizes, side_out = model(inputs, input_sizes)
                 out = out.transpose(0, 1)  # TxNxH
-            
                 target_accents = np.argmax(target_accents, axis=1) # TODO check if this could be done elsewhere…
                 loss = criterion((out, targets, output_sizes, target_sizes), (side_out.cpu(), target_accents))
                 main_loss, side_loss = criterion.get_sublosses()
