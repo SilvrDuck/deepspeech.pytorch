@@ -441,9 +441,9 @@ if __name__ == '__main__':
                            file_path)
             del loss
             del out
-        avg_loss /= len(train_sampler)
-        avg_main_loss /= len(train_sampler)
-        avg_side_loss /= len(train_sampler)
+        #avg_loss /= len(train_sampler)
+        #avg_main_loss /= len(train_sampler)
+        #avg_side_loss /= len(train_sampler)
 
         epoch_time = time.time() - start_epoch_time
         print('Training Summary Epoch: [{0}]\t'
