@@ -229,6 +229,8 @@ if __name__ == '__main__':
                 for i in range(start_epoch):
                     values = {
                         'Avg Train Loss': loss_results[i],
+                        'Avg Main Loss': main_loss_results[i],
+                        'Avg Side Loss': side_loss_results[i],
                         'Avg WER': wer_results[i],
                         'Avg CER': cer_results[i],
                         'Accent missclassification': mca_results[i]
@@ -537,6 +539,8 @@ if __name__ == '__main__':
             if args.tensorboard and main_proc:
                 values = {
                     'Avg Train Loss': avg_loss,
+                    'Avg Main Loss': avg_main_loss,
+                    'Avg Side Loss': avg_side_loss,
                     'Avg WER': wer,
                     'Avg CER': cer,
                     'Avg Accent missclassification': mca
