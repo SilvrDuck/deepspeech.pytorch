@@ -319,6 +319,7 @@ if __name__ == '__main__':
     #t.print_report()
     ## TRAIN ##
     t.add('starts epochs')
+    display_scaling_coef = None
     for epoch in range(start_epoch, args.epochs):
         t.add(f'begin epoch {epoch}')
         model.train()
@@ -425,6 +426,12 @@ if __name__ == '__main__':
         avg_loss /= len(train_sampler)
         avg_main_loss /= len(train_sampler)
         avg_side_loss /= len(train_sampler)
+
+        if display_scaling_coef is None:
+            display_scaling_coef = 100. / avg_loss
+        display_avg_loss = avg_loss * display_scaling_coef
+        display_avg_main_loss = avg_main_loss * display_scaling_coef
+        display_avg_side_loss = avg_side_loss * display_scaling_coef
         
         epoch_time = time.time() - start_epoch_time
         print('Training Summary Epoch: [{0}]\t'
@@ -483,9 +490,9 @@ if __name__ == '__main__':
             wer *= 100
             cer *= 100
             
-            loss_results[epoch] = avg_loss
-            main_loss_results[epoch] = avg_main_loss
-            side_loss_results[epoch] = avg_side_loss
+            loss_results[epoch] = display_avg_loss
+            main_loss_results[epoch] = display_avg_main_loss
+            side_loss_results[epoch] = display_avg_side_loss
             wer_results[epoch] = wer
             cer_results[epoch] = cer
             
@@ -526,9 +533,9 @@ if __name__ == '__main__':
                     )
             if args.tensorboard and main_proc:
                 values = {
-                    'Avg Train Loss': avg_loss,
-                    'Avg Main Loss': avg_main_loss,
-                    'Avg Side Loss': avg_side_loss,
+                    'Avg Train Loss': display_avg_loss,
+                    'Avg Main Loss': display_avg_main_loss,
+                    'Avg Side Loss': display_avg_side_loss,
                     'Avg WER': wer,
                     'Avg CER': cer,
                     'Avg Accent missclassification': mca
