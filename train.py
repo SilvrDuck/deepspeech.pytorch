@@ -324,12 +324,16 @@ if __name__ == '__main__':
     print(model)
     print("Number of parameters: %d" % type(model).get_param_size(model))
 
-    if args.tensorboard and main_proc and False: # TODO empty scope name problem
-        dummy_inputs = torch.rand(20, 1, 161, 10) # TODO dynamically change size
-        if args.cuda:
-            dummy_inputs = dummy_inputs.cuda()
-        dummy_size = torch.rand(20)
-        tensorboard_writer.add_graph(model, (dummy_inputs, dummy_size))
+    if args.tensorboard and main_proc: # TODO empty scope name problem
+        try:
+            dummy_inputs = torch.rand(20, 1, 161, 10) # TODO dynamically change size
+            if args.cuda:
+                 dummy_inputs = dummy_inputs.cuda()
+            dummy_size = torch.rand(20)
+            tensorboard_writer.add_graph(model, (dummy_inputs, dummy_size))
+        except Exception as e:
+            print("Exception while creating tensorboard graph:")
+            print(e)
 
     batch_time = AverageMeter()
     data_time = AverageMeter()
