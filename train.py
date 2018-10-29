@@ -189,7 +189,7 @@ if __name__ == '__main__':
             if args.cuda:
                 model.cuda()
             optimizer.load_state_dict(package['optim_dict'])
-            start_epoch = int(package.get('epoch', 1)) - 1  # Index start at 0 for training
+            start_epoch = int(package.get('epoch', 1)) - 1  # Index starts at 0 for training
             start_iter = package.get('iteration', None)
             if start_iter is None:
                 start_epoch += 1  # We saved model after epoch finished, start at the next epoch.
