@@ -1,6 +1,10 @@
 import os
 import subprocess
 from tempfile import NamedTemporaryFile
+from pathlib import Path
+
+from data.kaldi_io import read_mat_ark
+from data.utils import OrderedIterators
 
 from torch.distributed import get_rank
 from torch.distributed import get_world_size
@@ -198,18 +202,59 @@ class SpectrogramAccentDataset(SpectrogramDataset):
     The target accents are output as one-hot vectors.
     '''
     @overrides
-    def __init__(self, audio_conf, manifest_filepath, labels, accent_binarizer, normalize=False, augment=False):
+    def __init__(self, audio_conf, manifest_filepath, labels, accent_binarizer, normalize=False, augment=False, kaldi=False):
         super(SpectrogramAccentDataset, self).__init__(audio_conf, manifest_filepath, labels, normalize, augment)
         self.accent_binarizer = accent_binarizer
+        self.kaldi = kaldi
+        
+        if kaldi:
+            norm_dict = {}
+            kaldi_path = Path('/'.join(manifest_filepath.split('/')[:-2]))  / 'kaldi'
+            for f in kaldi_path.iterdir():
+                if f.suffix == '.ark':
+                    norm_dict[f.stem.split('-')[0]] = read_mat_ark(str(f))
+
+            ivector_dict = {}
+            for sub_dir in [sub for sub in kaldi_path.iterdir() if 'ivector' in sub.stem]:
+                iterators = []
+                idx = []
+                for f in sub_dir.iterdir():
+                    if f.suffix == '.ark':
+                        iterators.append(read_mat_ark(str(f)))
+                        idx.append(int(''.join([c for c in str(f.stem) if c.isdigit()])))
+
+                iterators = OrderedIterators(iterators, idx=idx)
+                ivector_dict[sub_dir.stem.split('_')[2]] = iterators
+
+            self.norm_dict = norm_dict
+            self.ivector_dict = ivector_dict
 
     @overrides
     def __getitem__(self, index):
         sample = self.ids[index]
         audio_path, transcript_path, accent = sample[0], sample[1], sample[2]
-        spect = self.parse_audio(audio_path)
+        
+        if self.kaldi:
+            temp = audio_path.split('/')
+            sample_name = '-'.join([temp[3], temp[5]])[:-4] # create name found in kaldi .ark files
+            type_ = sample_name.split('-')[2]
+            print('run for ', sample_name)
+            current_name = ''
+            sample_norm, sample_ivector = None, None
+            while sample_name != current_name:
+                print('s', sample_name, 'c', current_name)
+                current_name, sample_norm = self.norm_dict[type_].__next__()
+                sample_ivector = self.ivector_dict[type_].__next__()[1]
+
+            spect = torch.from_numpy(sample_norm.T)
+        else:
+            spect = self.parse_audio(audio_path)
+
         transcript = self.parse_transcript(transcript_path)
         accent = self.accent_binarizer.transform([accent])
         return spect, transcript, accent
+
+
 
 
 def _collate_fn(batch):
@@ -243,7 +288,7 @@ def _collate_fn(batch):
         target_accents.extend(accent)        
     targets = torch.IntTensor(targets)
 
-    if target_accents[0] is not None: # if we do not hav accents, returns a list of None
+    if target_accents[0] is not None: # if we do not have accents, returns a list of None
         target_accents = torch.LongTensor(target_accents)
 
     return inputs, targets, input_percentages, target_sizes, target_accents
@@ -365,3 +410,5 @@ def load_randomly_augmented_audio(path, sample_rate=16000, tempo_range=(0.85, 1.
     audio = augment_audio_with_sox(path=path, sample_rate=sample_rate,
                                    tempo=tempo_value, gain=gain_value)
     return audio
+
+

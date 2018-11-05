@@ -42,3 +42,27 @@ def reduce_tensor(tensor, world_size):
     rt /= world_size
     return rt
 
+
+
+class OrderedIterators:
+    def __init__(self, list_, idx=None):
+        if idx is None: # assumes list_ is ordered
+            self.iterators = list_
+        else:
+            self.iterators = [e for __, e in sorted(zip(idx, list_))]
+       
+        self.n = 0
+
+    def __iter__(self):
+        self.n = 0
+        return self
+
+    def __next__(self):
+        if self.n >= len(self.iterators):
+            raise StopIteration
+
+        try:
+            return self.iterators[self.n].__next__()
+        except StopIteration:
+            self.n += 1
+            return self.__next__()

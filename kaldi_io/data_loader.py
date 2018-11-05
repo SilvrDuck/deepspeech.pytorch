@@ -3,6 +3,7 @@ import json
 import random
 import torch
 import torch.nn.functional as F
+from torch.utils.data import DataLoader, DataSet
 from kaldi_io import read_mat_scp
 
 
@@ -52,7 +53,7 @@ def split_data(data_path, splits, shuffle=True, savepath=None):
     return {'train': trn, 'dev': dev, 'tst': tst}
         
 
-class SpeechDataset:
+class SpeechDataset(DataSet):
     """Defines an iterator over the dataset. This class is intended to be used with PyTorch DataLoader"""
     
     def __init__(self, data_path, sample_ids):
@@ -88,3 +89,11 @@ def collate_fn(batch):
         res[i, :] = F.pad(x, (0, 0, 0, max_seq_len - x.size(0))).data
             
     return res
+
+class SpeechDataLoader(DataLoader):
+    def __init__(self, *args, **kwargs):
+        """
+        Creates a data loader for SpeechDatasets.
+        """
+        super(SpeechDataLoader, self).__init__(*args, **kwargs)
+        self.collate_fn = collate_fn
