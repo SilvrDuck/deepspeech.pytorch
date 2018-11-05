@@ -268,25 +268,40 @@ if __name__ == '__main__':
 
     decoder = GreedyDecoder(labels)
 
-    t.add('starts SpectrogramDataset')
-    train_dataset = SpectrogramAccentDataset(audio_conf=audio_conf, manifest_filepath=args.train_manifest, labels=labels,
-                                       normalize=True, augment=args.augment, accent_binarizer=accent_binarizer)
-    test_dataset = SpectrogramAccentDataset(audio_conf=audio_conf, manifest_filepath=args.val_manifest, labels=labels,
-                                      normalize=True, augment=False, accent_binarizer=accent_binarizer)
+
+    use_kaldi_features = False
+
+    train_dataset = SpectrogramAccentDataset(audio_conf=audio_conf, 
+                                            manifest_filepath=args.train_manifest, 
+                                            labels=labels,
+                                            normalize=True, 
+                                            augment=args.augment, 
+                                            accent_binarizer=accent_binarizer,
+                                            kaldi=use_kaldi_features)
+
+    test_dataset = SpectrogramAccentDataset(audio_conf=audio_conf, 
+                                            manifest_filepath=args.val_manifest, 
+                                            labels=labels,
+                                            normalize=True, 
+                                            augment=False, 
+                                            accent_binarizer=accent_binarizer,
+                                            kaldi=use_kaldi_features) 
 
 
-    t.add('start bucketing sampler')
     if not args.distributed:
         train_sampler = BucketingSampler(train_dataset, batch_size=args.batch_size)
     else:
         train_sampler = DistributedBucketingSampler(train_dataset, batch_size=args.batch_size,
                                                     num_replicas=args.world_size, rank=args.rank)
-    t.add('start Audiodataloader')
+    
     train_loader = AudioDataLoader(train_dataset,
-                                   num_workers=args.num_workers, batch_sampler=train_sampler)
-    test_loader = AudioDataLoader(test_dataset, batch_size=args.batch_size,
-                                  num_workers=args.num_workers)
-    t.add('starts shuffling batches')
+                                    num_workers=args.num_workers, 
+                                    batch_sampler=train_sampler)
+    test_loader = AudioDataLoader(test_dataset, 
+                                    batch_size=args.batch_size,
+                                    num_workers=args.num_workers)
+
+
     if (not args.no_shuffle and start_epoch != 0) or args.no_sorta_grad:
         print("Shuffling batches for the following epochs")
         train_sampler.shuffle(start_epoch)

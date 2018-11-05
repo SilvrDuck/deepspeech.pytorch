@@ -7,7 +7,7 @@ from tqdm import tqdm
 from data.data_loader import SpectrogramDataset, AudioDataLoader
 from decoder import GreedyDecoder
 from model import DeepSpeech
-from multitask_models import MtAccent
+from multitask_model import MtAccent
 from opts import add_decoder_args, add_inference_args
 
 parser = argparse.ArgumentParser(description='DeepSpeech transcription')

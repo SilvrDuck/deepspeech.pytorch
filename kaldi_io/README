@@ -1,0 +1,3 @@
+Pytorch seq2seq model for audio sentence autoencoding (which didn't work as we discussed) and code for data loading and training.
+
+DATA: https://drive.google.com/drive/folders/1vlmfmqZAl7f1cW2NtfXfshALLm4G0DBz
