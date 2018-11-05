@@ -8,20 +8,18 @@ METHOD="mini" # train, test or mini
 MODEL='mtaccent' # deepspeech or mtaccent
 
 EPOCHS='50'
-LR='3e-4'
+LR='3e-3'
 
-HIDDEN_LAYERS='5'
-HIDDEN_SIZE='800'
+HIDDEN_LAYERS='4'
+HIDDEN_SIZE='600'
 
-SIDE_HIDDEN_LAYERS='4'
+SIDE_HIDDEN_LAYERS='2'
 SHARED_LAYERS='2'
 
-BOTTLENECK_SIZE='40'
+BOTTLENECK_SIZE='100'
 MIXING_COEF='.5'
-SIDE_HIDDEN_SIZE=$HIDDEN_SIZE
 
 RNN_TYPE='gru'
-SIDE_RNN_TYPE=$RNN_TYPE
 
 ## Get arguments
 
@@ -109,6 +107,10 @@ esac
 done
 set -- "${POSITIONAL[@]}" # restore positional parameters
 
+
+SIDE_HIDDEN_SIZE=$HIDDEN_SIZE
+SIDE_RNN_TYPE=$RNN_TYPE
+
 ## Name
 
 NOW=$(eval date +"%F_%Hh%M_")
@@ -117,7 +119,7 @@ if [ "$MODEL" = "mtaccent" ] ; then
 	MODEL_DEPENDANT='_slyrs-'${SIDE_HIDDEN_LAYERS}x${SIDE_HIDDEN_SIZE}_shrd-${SHARED_LAYERS}_btnck-${BOTTLENECK_SIZE}_mix-${MIXING_COEF}
 fi
 
-ID=${NOW}${EXP_NAME}_model-${MODEL}_lr-${LR}_lyrs-${HIDDEN_LAYERS}x${HIDDEN_SIZE}${MODEL_DEPENDANT}
+ID=${NOW}${EXP_NAME}_model-${MODEL}_ep-${EPOCHS}_lr-${LR}_lyrs-${HIDDEN_LAYERS}x${HIDDEN_SIZE}${MODEL_DEPENDANT}
 
 ## Roomkeeping
 

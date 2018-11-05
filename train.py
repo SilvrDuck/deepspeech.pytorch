@@ -307,7 +307,7 @@ if __name__ == '__main__':
             if args.cuda:
                  dummy_inputs = dummy_inputs.cuda()
             dummy_size = torch.rand(20)
-            tensorboard_writer.add_graph(model, (dummy_inputs, dummy_size))
+            tensorboard_writer.add_graph(model, (dummy_inputs, dummy_size), verbose=True)
         except Exception as e:
             print("Exception while creating tensorboard graph:")
             print(e)
