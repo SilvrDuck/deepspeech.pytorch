@@ -2,13 +2,11 @@ from timeit import default_timer as timer
 import argparse
 
 
-
 def restricted_float(x):
     x = float(x)
     if x < 0.0 or x > 1.0:
         raise argparse.ArgumentTypeError(f'{x} not in range [0.0, 1.0]')     
     return x
-
 
 class Timer():
 
