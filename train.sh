@@ -126,7 +126,7 @@ ID=${NOW}${EXP_NAME}_model-${MODEL}_ep-${EPOCHS}_lr-${LR}_lyrs-${HIDDEN_LAYERS}x
 SPLITS="data/CommonVoice_dataset/splits/"
 
 if [ "$METHOD" = "mini" ] ; then
-	MODELS_PATH="models/tmp"
+	MODELS_PATH="saved_models/tmp"
 	RUNS_PATH="runs/tmp"
 	VALIDATION=${SPLITS}minidev.csv
 	CUDA=''
@@ -184,6 +184,6 @@ time python train.py \
 	--log-dir $RUNS_PATH \
 	--log-params \
 	--save-folder $MODELS_PATH \
-	--model-path models/best/${ID}.pth \
+	--model-path saved_models/best/${ID}.pth \
 	--augment $CUDA \
 	--id $ID

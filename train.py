@@ -19,8 +19,9 @@ from data.data_loader import create_binarizer
 from data.data_loader import AudioDataLoader, SpectrogramAccentDataset, BucketingSampler, DistributedBucketingSampler
 from data.utils import reduce_tensor
 from decoder import GreedyDecoder
-from model import DeepSpeech, supported_rnns
-from multitask_model import MtAccent
+from models.deepspeech import DeepSpeech
+from models.modules import supported_rnns
+from models.accent_classification import MtAccent
 from multitask_loss import MtLoss
 
 
