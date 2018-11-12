@@ -6,8 +6,8 @@ from tqdm import tqdm
 
 from data.data_loader import SpectrogramDataset, AudioDataLoader
 from decoder import GreedyDecoder
-from model import DeepSpeech
-from multitask_model import MtAccent
+from models.deepspeech import DeepSpeech
+from models.accent_classification import MtAccent
 from opts import add_decoder_args, add_inference_args
 
 parser = argparse.ArgumentParser(description='DeepSpeech transcription')
@@ -33,7 +33,7 @@ if __name__ == '__main__':
     except:
         model = None
     if model is None:
-        model = MtAccent.load_model(args.model_path)
+        model = MtAccent.load_model(args.model_path) #, strict=False)
 
 
     if args.cuda:
@@ -47,7 +47,6 @@ if __name__ == '__main__':
 
     if args.decoder == "beam":
         from decoder import BeamCTCDecoder
-
         decoder = BeamCTCDecoder(labels, lm_path=args.lm_path, alpha=args.alpha, beta=args.beta,
                                  cutoff_top_n=args.cutoff_top_n, cutoff_prob=args.cutoff_prob,
                                  beam_width=args.beam_width, num_processes=args.lm_workers)
