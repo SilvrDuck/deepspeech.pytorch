@@ -95,6 +95,8 @@ class BeamCTCDecoder(Decoder):
             from ctcdecode import CTCBeamDecoder
         except ImportError:
             raise ImportError("BeamCTCDecoder requires paddledecoder package.")
+
+        labels = labels.replace("'", "a") # TODO fix that
         self._decoder = CTCBeamDecoder(labels, lm_path, alpha, beta, cutoff_top_n, cutoff_prob, beam_width,
                                        num_processes, blank_index)
 
@@ -137,7 +139,6 @@ class BeamCTCDecoder(Decoder):
         """
         probs = probs.cpu()
         out, scores, offsets, seq_lens = self._decoder.decode(probs, sizes)
-
         strings = self.convert_to_strings(out, seq_lens)
         offsets = self.convert_tensor(offsets, seq_lens)
         return strings, offsets
