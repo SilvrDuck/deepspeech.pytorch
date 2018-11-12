@@ -101,6 +101,7 @@ ENV/
 
 # deepspeech.pytorch-specific dirs
 saved_models/
+data/language_models/
 data/*.csv
 data/*_dataset/
 runs/
