@@ -196,6 +196,23 @@ def create_binarizer(manifest_filepath):
     else:
         return None
 
+def get_accents_counts(manifest_filepath):
+    with open(manifest_filepath) as f:
+        ids = f.readlines()
+    ids = [x.strip().split(',') for x in ids]
+
+    if len(ids[0]) >= 3:
+        dict_ = {}
+        for x in ids:
+            k = x[2]
+            if k in dict_:
+                dict_[k] += 1
+            else:
+                dict_[k] = 0
+        return dict_
+    else:
+        return None
+    
 class SpectrogramAccentDataset(SpectrogramDataset):
     '''
     Adds accent support to the SpectrogramDataset class. csv manifest should contain the accent labels as third column.

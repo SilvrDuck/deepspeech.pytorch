@@ -90,6 +90,7 @@ if __name__ == '__main__':
         target_strings = target_decoder.convert_to_strings(split_targets)
         for x in range(len(target_strings)):
             transcript, reference = decoded_output[x][0], target_strings[x][0]
+
             wer_inst = decoder.wer(transcript, reference)
             cer_inst = decoder.cer(transcript, reference)
 

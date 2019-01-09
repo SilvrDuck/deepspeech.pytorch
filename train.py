@@ -316,7 +316,6 @@ if __name__ == '__main__':
 
     print(model)
     print("Number of parameters: %d" % type(model).get_param_size(model))
-
     if args.tensorboard and main_proc: # TODO empty scope name problem
         try:
             dummy_inputs = torch.rand(20, 1, 161, 10) # TODO dynamically change size

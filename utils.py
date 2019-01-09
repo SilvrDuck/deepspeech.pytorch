@@ -1,5 +1,6 @@
 from timeit import default_timer as timer
 import argparse
+import numpy as np
 
 
 def restricted_float(x):
@@ -53,7 +54,7 @@ class Timer():
         for row in self.events:
             print(''.join(cropped(v).rjust(col_width[k]) for k, v in row.items()))
         print('### End report   ###')
-
+        
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
@@ -72,3 +73,8 @@ class AverageMeter(object):
         self.sum += val * n
         self.count += n
         self.avg = self.sum / self.count
+        
+def count_parameters(model):
+    model_parameters = filter(lambda p: p.requires_grad, model.parameters())
+    params = sum([np.prod(p.size()) for p in model_parameters])
+    return params

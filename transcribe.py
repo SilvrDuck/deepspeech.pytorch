@@ -10,7 +10,7 @@ from decoder import GreedyDecoder
 import torch
 
 from data.data_loader import SpectrogramParser
-from model import DeepSpeech
+from models.deepspeech import DeepSpeech
 import os.path
 import json
 

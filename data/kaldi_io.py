@@ -354,6 +354,8 @@ def read_mat_ark(file_or_fd):
   finally:
     if fd is not file_or_fd : fd.close()
 
+
+        
 def read_mat(file_or_fd):
   """ [mat] = read_mat(file_or_fd)
    Reads single kaldi matrix, supports ascii and binary.

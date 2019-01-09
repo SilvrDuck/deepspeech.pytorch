@@ -13,7 +13,7 @@ MODEL=$(basename $MODEL_PATH)
 SPLITS="./data/CommonVoice_dataset/splits/"
 LOG="./logs/test_"${MODEL}
 
-ARGS="--decoder beam --lm-path data/language_models/en-70k-0.2.binary"
+ARGS="--cuda --decoder beam --lm-path $2 --cuda"
 
 printf "Testing dev\n"
 A=$(python ./test.py --model-path ${MODEL_PATH} --test-manifest ${SPLITS}dev.csv ${ARGS})
