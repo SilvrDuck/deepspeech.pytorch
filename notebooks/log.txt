@@ -1,0 +1,308 @@
+
+#############
+train_MT_mix-1.0_1549281605.3703167
+#############
+
+## EPOCH 1 ##
+Training:
+Epoch 1 average loss: 1147.143, 
+                  fc: 1147.143, 
+                  accent: 5835.010
+Testing:
+Average validation loss: 2810.207
+Average wer: 90.000%
+Average acc: 0.000%
+New best model found.
+
+## EPOCH 2 ##
+Training:
+Epoch 2 average loss: 745.366, 
+                  fc: 745.366, 
+                  accent: 5836.318
+Testing:
+Average validation loss: 3506.113
+Average wer: 72.743%
+Average acc: 28.571%
+
+## EPOCH 3 ##
+Training:
+Epoch 3 average loss: 587.434, 
+                  fc: 587.434, 
+                  accent: 5837.797
+Testing:
+Average validation loss: 3309.204
+Average wer: 52.863%
+Average acc: 14.286%
+
+## EPOCH 4 ##
+Training:
+Epoch 4 average loss: 493.739, 
+                  fc: 493.739, 
+                  accent: 5837.816
+Testing:
+Average validation loss: 2904.242
+Average wer: 22.880%
+Average acc: 28.571%
+New best model found.
+
+## EPOCH 5 ##
+Training:
+Epoch 5 average loss: 428.977, 
+                  fc: 428.977, 
+                  accent: 5837.521
+Testing:
+Average validation loss: 2530.525
+Average wer: 12.727%
+Average acc: 0.000%
+
+## EPOCH 6 ##
+Training:
+Epoch 6 average loss: 379.195, 
+                  fc: 379.195, 
+                  accent: 5837.663
+Testing:
+Average validation loss: 3564.760
+Average wer: 12.500%
+Average acc: 0.000%
+New best model found.
+
+## EPOCH 7 ##
+Training:
+Epoch 7 average loss: 334.736, 
+                  fc: 334.736, 
+                  accent: 5837.505
+Testing:
+Average validation loss: 3276.824
+Average wer: 11.976%
+Average acc: 0.000%
+
+## EPOCH 8 ##
+Training:
+Epoch 8 average loss: 299.859, 
+                  fc: 299.859, 
+                  accent: 5837.247
+Testing:
+Average validation loss: 3796.257
+Average wer: 7.922%
+Average acc: 0.000%
+
+## EPOCH 9 ##
+Training:
+Epoch 9 average loss: 263.912, 
+                  fc: 263.912, 
+                  accent: 5837.044
+Testing:
+Average validation loss: 2695.883
+Average wer: 27.798%
+Average acc: 14.286%
+
+## EPOCH 10 ##
+Training:
+Epoch 10 average loss: 240.990, 
+                  fc: 240.990, 
+                  accent: 5837.845
+Testing:
+Average validation loss: 2997.153
+Average wer: 28.571%
+Average acc: 0.000%
+
+## EPOCH 11 ##
+Training:
+Epoch 11 average loss: 219.039, 
+                  fc: 219.039, 
+                  accent: 5838.175
+Testing:
+Average validation loss: 3334.406
+Average wer: 30.397%
+Average acc: 14.286%
+
+## EPOCH 12 ##
+Training:
+Epoch 12 average loss: 197.463, 
+                  fc: 197.463, 
+                  accent: 5837.356
+Testing:
+Average validation loss: 2727.852
+Average wer: 39.252%
+Average acc: 28.571%
+
+## EPOCH 13 ##
+Training:
+Epoch 13 average loss: 182.421, 
+                  fc: 182.421, 
+                  accent: 5837.571
+Testing:
+Average validation loss: 2961.883
+Average wer: 13.045%
+Average acc: 14.286%
+
+## EPOCH 14 ##
+Training:
+Epoch 14 average loss: 166.320, 
+                  fc: 166.320, 
+                  accent: 5837.447
+Testing:
+Average validation loss: 3262.012
+Average wer: 11.735%
+Average acc: 0.000%
+New best model found.
+
+## EPOCH 15 ##
+Training:
+Epoch 15 average loss: 153.797, 
+                  fc: 153.797, 
+                  accent: 5837.269
+Testing:
+Average validation loss: 3189.873
+Average wer: 28.782%
+Average acc: 14.286%
+
+## EPOCH 16 ##
+Training:
+Epoch 16 average loss: 142.661, 
+                  fc: 142.661, 
+                  accent: 5838.045
+Testing:
+Average validation loss: 2902.286
+Average wer: 41.633%
+Average acc: 28.571%
+
+## EPOCH 17 ##
+Training:
+Epoch 17 average loss: 134.546, 
+                  fc: 134.546, 
+                  accent: 5837.264
+Testing:
+Average validation loss: 3451.110
+Average wer: 21.418%
+Average acc: 14.286%
+
+## EPOCH 18 ##
+Training:
+Epoch 18 average loss: 128.793, 
+                  fc: 128.793, 
+                  accent: 5837.958
+Testing:
+Average validation loss: 3219.185
+Average wer: 11.378%
+Average acc: 14.286%
+
+## EPOCH 19 ##
+Training:
+Epoch 19 average loss: 127.363, 
+                  fc: 127.363, 
+                  accent: 5837.403
+Testing:
+Average validation loss: 2797.230
+Average wer: 34.216%
+Average acc: 14.286%
+
+## EPOCH 20 ##
+Training:
+Epoch 20 average loss: 115.312, 
+                  fc: 115.312, 
+                  accent: 5836.960
+Testing:
+Average validation loss: 3567.040
+Average wer: 18.909%
+Average acc: 28.571%
+
+## EPOCH 21 ##
+Training:
+Epoch 21 average loss: 110.441, 
+                  fc: 110.441, 
+                  accent: 5836.944
+Testing:
+Average validation loss: 3216.695
+Average wer: 31.066%
+Average acc: 14.286%
+
+## EPOCH 22 ##
+Training:
+Epoch 22 average loss: 105.583, 
+                  fc: 105.583, 
+                  accent: 5837.955
+Testing:
+Average validation loss: 2787.079
+Average wer: 7.415%
+Average acc: 14.286%
+
+## EPOCH 23 ##
+Training:
+Epoch 23 average loss: 103.359, 
+                  fc: 103.359, 
+                  accent: 5837.078
+Testing:
+Average validation loss: 3808.068
+Average wer: 3.777%
+Average acc: 14.286%
+
+## EPOCH 24 ##
+Training:
+Epoch 24 average loss: 96.453, 
+                  fc: 96.453, 
+                  accent: 5836.503
+Testing:
+Average validation loss: 3622.180
+Average wer: 29.127%
+Average acc: 28.571%
+
+## EPOCH 25 ##
+Training:
+Epoch 25 average loss: 94.840, 
+                  fc: 94.840, 
+                  accent: 5837.302
+Testing:
+Average validation loss: 2688.919
+Average wer: 29.279%
+Average acc: 0.000%
+
+## EPOCH 26 ##
+Training:
+Epoch 26 average loss: 92.802, 
+                  fc: 92.802, 
+                  accent: 5837.172
+Testing:
+Average validation loss: 3093.345
+Average wer: 27.289%
+Average acc: 14.286%
+
+## EPOCH 27 ##
+Training:
+Epoch 27 average loss: 95.162, 
+                  fc: 95.162, 
+                  accent: 5837.025
+Testing:
+Average validation loss: 2698.244
+Average wer: 34.218%
+Average acc: 28.571%
+
+## EPOCH 28 ##
+Training:
+Epoch 28 average loss: 86.557, 
+                  fc: 86.557, 
+                  accent: 5836.272
+Testing:
+Average validation loss: 3363.271
+Average wer: 31.905%
+Average acc: 0.000%
+
+## EPOCH 29 ##
+Training:
+Epoch 29 average loss: 89.950, 
+                  fc: 89.950, 
+                  accent: 5836.967
+Testing:
+Average validation loss: 4173.074
+Average wer: 21.992%
+Average acc: 14.286%
+
+## EPOCH 30 ##
+Training:
+Epoch 30 average loss: 86.234, 
+                  fc: 86.234, 
+                  accent: 5836.744
+Testing:
+Average validation loss: 3308.319
+Average wer: 17.527%
+Average acc: 28.571%

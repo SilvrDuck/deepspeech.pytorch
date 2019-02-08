@@ -108,3 +108,6 @@ runs/
 visualize/
 *.tmp
 *.swp
+*.pth
+*.pt
+*.pickle

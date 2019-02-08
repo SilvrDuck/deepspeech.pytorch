@@ -21,7 +21,7 @@ from data.utils import reduce_tensor
 from decoder import GreedyDecoder
 from models.deepspeech import DeepSpeech
 from models.modules import supported_rnns
-from models.accent_classification import MtAccent
+from models.accent_classifier import AccentClassifier
 from multitask_loss import MtLoss
 
 
@@ -355,7 +355,13 @@ if __name__ == '__main__':
             if args.model == 'deepspeech':
                 out, output_sizes = model(inputs, input_sizes)
                 out = out.transpose(0, 1)  # TxNxH
-                
+               
+                if True: # DEBUG
+                    print('out', out.size())
+                    print('targets', targets.size())
+                    print('output_sizes', output_sizes.size())
+                    print('target_sizes', target_sizes.size())
+
                 loss = criterion(out, targets, output_sizes, target_sizes)
                 main_loss, side_loss = torch.tensor(0), torch.tensor(0)
             elif args.model == 'mtaccent':
@@ -487,6 +493,7 @@ if __name__ == '__main__':
                         if accent_out != accent_target:
                             mca += 1
                     total_mca += mca
+
 
                 decoded_output, _ = decoder.decode(out.data, output_sizes)
                 target_strings = decoder.convert_to_strings(split_targets)

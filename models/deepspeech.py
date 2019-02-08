@@ -10,6 +10,8 @@ from torch.autograd import Variable
 from models.modules import MaskConv, SequenceWise, BatchRNN, InferenceBatchSoftmax, Lookahead, \
                     supported_rnns, supported_rnns_inv
 
+DEBUG = True 
+
 class DeepSpeech(nn.Module):
     def __init__(self, 
                 rnn_type=nn.LSTM, 
@@ -18,10 +20,11 @@ class DeepSpeech(nn.Module):
                 nb_layers=5, 
                 audio_conf=None,
                 bidirectional=True, 
-                context=20):
+                context=20,
+                DEBUG=DEBUG):
 
         super(DeepSpeech, self).__init__()
-
+        self._DEBUG = DEBUG
         # model metadata needed for serialization/deserialization
         if audio_conf is None:
             audio_conf = {}
@@ -78,24 +81,42 @@ class DeepSpeech(nn.Module):
 
 
     def forward(self, x, lengths):
+        if self._DEBUG:
+            print('after input ', x.size())
+        
         lengths = lengths.cpu().int()
         output_lengths = self.get_seq_lens(lengths)
         x, _ = self.conv(x, output_lengths)
+        if self._DEBUG:
+            print('after conv', x.size())
 
         sizes = x.size()
         x = x.view(sizes[0], sizes[1] * sizes[2], sizes[3])  # Collapse feature dimension
+        if self._DEBUG:
+            print('after view', x.size())
         x = x.transpose(1, 2).transpose(0, 1).contiguous()  # TxNxH
+        if self._DEBUG:
+            print('after transpose', x.size())
 
         for rnn in self.rnns:
             x = rnn(x, output_lengths)
+        if self._DEBUG:
+            print('after rnn', x.size())
 
         if not self._bidirectional:  # no need for lookahead layer in bidirectional
             x = self.lookahead(x)
 
         x = self.fc(x)
+        if self._DEBUG:
+            print('after fc', x.size())
         x = x.transpose(0, 1)
+        if self._DEBUG:
+            print('after transpose', x.size())
         # identity in training mode, softmax in eval mode
         x = self.inference_softmax(x)
+        if self._DEBUG:
+            print('after softmax', x.size())
+        self._DEBUG = False
         return x, output_lengths
 
     def get_seq_lens(self, input_length):

@@ -324,13 +324,16 @@ def read_mat_scp(file_or_fd):
    d = { key:mat for key,mat in kaldi_io.read_mat_scp(file) }
   """
   fd = open_or_fd(file_or_fd)
-  try:
-    for line in fd:
+
+  for line in fd:
+    try:
       (key,rxfile) = line.decode().split(' ')
       mat = read_mat(rxfile)
       yield key, mat
-  finally:
-    if fd is not file_or_fd : fd.close()
+    except ValueError:
+      print(f'Pass {line}')
+
+  if fd is not file_or_fd : fd.close()
 
 def read_mat_ark(file_or_fd):
   """ generator(key,mat) = read_mat_ark(file_or_fd)
@@ -412,6 +415,8 @@ def _read_compressed_mat(fd, format):
       see: https://github.com/kaldi-asr/kaldi/blob/master/src/matrix/compressed-matrix.h
       methods: CompressedMatrix::Read(...), CompressedMatrix::CopyToMat(...),
   """
+  if format != 'CM ':
+        raise ValueError(f'format "{format}" of {fd} is not supported')
   assert(format == 'CM ') # The formats CM2, CM3 are not supported...
 
   # Format of header 'struct',
