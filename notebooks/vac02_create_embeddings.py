@@ -1,3 +1,5 @@
+print('#### START VAC02 ####')
+
 DEV = True
 EPOCHS = 1
 DEBUG = False
@@ -188,3 +190,5 @@ for type_, len_ in zip(types, lens):
                 torch.save(emb, target)
         except:
             print('error with ', file)
+            
+print('#### END VAC02 ####')
