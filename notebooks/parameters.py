@@ -2,7 +2,7 @@ import torch.nn as nn
 
 parameters = {
     'lr': [3e-4],
-    'epochs': 3,
+    'epochs': 20,
     'sample_rate': 16_000,
     'window_size': .02,
     'window_stride': .01,
@@ -15,7 +15,7 @@ parameters = {
     'max_norm': 400,
     'save_folder': '../models/best',
     'augment': True,
-    'batch_size': 20,
+    'batch_size': 30,
     'num_worker': 4,
     'cuda': True,
     'tensorboard_dir': '../runs/',
@@ -48,7 +48,7 @@ def get_parameters(dev=True, epochs=None, us_en=False):
     if dev:
         parameters['train_manifest'] = f'../data/CommonVoice_dataset/splits/for_notebooks/{us_en_}dev.csv'
         parameters['train_kaldi'] = '../data/CommonVoice_dataset/kaldi/dev-norm'
-        parameters['train_ivectors'] = '../data/CommonVoice_dataset/kaldi/ivectors_valid_dev_hires/extracted'
+        parameters['train_ivectors'] = '../../AccentedSpeechRecognition/data/dev/ivectors'
         parameters['train_transcripts'] = '../data/CommonVoice_dataset/cv-valid-dev/txt/'
         parameters['train_embeddings_100'] = '../data/CommonVoice_dataset/embeddings_100/dev/cv-valid-dev-sample-'
         parameters['train_embeddings_256'] = '../data/CommonVoice_dataset/embeddings_256/dev/cv-valid-dev-sample-'
@@ -56,7 +56,7 @@ def get_parameters(dev=True, epochs=None, us_en=False):
     else:
         parameters['train_manifest'] = f'../data/CommonVoice_dataset/splits/for_notebooks/{us_en_}train.csv'
         parameters['train_kaldi'] = '../data/CommonVoice_dataset/kaldi/train-norm'
-        parameters['train_ivectors'] = '../data/CommonVoice_dataset/kaldi/ivectors_valid_train_sp_hires/extracted'
+        parameters['train_ivectors'] = '../../AccentedSpeechRecognition/data/train/ivectors'
         parameters['train_transcripts'] = '../data/CommonVoice_dataset/cv-valid-train/txt/'
         parameters['train_embeddings_100'] = '../data/CommonVoice_dataset/embeddings_100/train/cv-valid-train-sample-'
         parameters['train_embeddings_256'] = '../data/CommonVoice_dataset/embeddings_256/train/cv-valid-train-sample-'
@@ -64,7 +64,7 @@ def get_parameters(dev=True, epochs=None, us_en=False):
         
     parameters['test_manifest'] = f'../data/CommonVoice_dataset/splits/for_notebooks/{us_en_}test.csv'
     parameters['test_kaldi'] = '../data/CommonVoice_dataset/kaldi/test-norm'
-    parameters['test_ivectors'] = '../data/CommonVoice_dataset/kaldi/ivectors_valid_test_hires/extracted'
+    parameters['test_ivectors'] = '../../AccentedSpeechRecognition/data/test/ivectors'
     parameters['test_transcripts'] = '../data/CommonVoice_dataset/cv-valid-test/txt/'
     parameters['test_embeddings_100'] = '../data/CommonVoice_dataset/embeddings_100/test/cv-valid-test-sample-'
     parameters['test_embeddings_256'] = '../data/CommonVoice_dataset/embeddings_256/test/cv-valid-test-sample-'
